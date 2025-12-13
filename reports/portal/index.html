@@ -639,10 +639,10 @@
                     displayCompanies(companiesData);
                 } else {
                     document.getElementById('companyGrid').innerHTML = 
-                        '<div class="loading">Please run: python generate_portal.py</div>';
+                        '<div class="loading">Please run: start_portal_server.bat<br><small>Or: python generate_portal.py</small></div>';
                 }
             } else {
-                // HTTP protocol - try fetch
+                // HTTP protocol - fetch from server (auto-generates on-demand)
                 fetch('api/companies.json')
                     .then(response => response.json())
                     .then(companies => {
@@ -653,7 +653,7 @@
                             displayCompanies(companiesData);
                         } else {
                             document.getElementById('companyGrid').innerHTML = 
-                                '<div class="loading">Please run: python generate_portal.py</div>';
+                                '<div class="loading">Connecting to server...<br><small>If this persists, run: start_portal_server.bat</small></div>';
                         }
                     });
             }
@@ -725,18 +725,20 @@
                     displayLedgers(company.ledgers);
                 } else {
                     document.getElementById('ledgerList').innerHTML = 
-                        '<div class="loading">No ledgers found. Please regenerate portal.</div>';
+                        '<div class="loading">No ledgers found.<br><small>Use start_portal_server.bat for auto-generation</small></div>';
                 }
             } else {
-                // HTTP protocol - try fetch
-                fetch(`api/ledgers/${selectedCompany.guid}_${selectedCompany.alterid}.json`)
+                // HTTP protocol - fetch from server (auto-generates on-demand)
+                const safeGuid = selectedCompany.guid.replace(/-/g, '_');
+                const safeAlterid = String(selectedCompany.alterid).replace(/\./g, '_');
+                fetch(`api/ledgers/${safeGuid}_${safeAlterid}.json`)
                     .then(response => response.json())
                     .then(ledgers => {
                         displayLedgers(ledgers);
                     })
                     .catch(() => {
                         document.getElementById('ledgerList').innerHTML = 
-                            '<div class="loading">Please run: python generate_portal.py</div>';
+                            '<div class="loading">Loading ledgers...<br><small>If this persists, check server is running</small></div>';
                     });
             }
         }
