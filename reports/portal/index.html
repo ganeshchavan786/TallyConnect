@@ -888,18 +888,35 @@
             };
             
             // Try to load report
-            frame.src = url;
+            // Use absolute path for file:// protocol
+            let absoluteUrl = url;
+            if (window.location.protocol === 'file:') {
+                // Get current directory
+                const currentPath = window.location.pathname;
+                const portalDir = currentPath.substring(0, currentPath.lastIndexOf('/'));
+                absoluteUrl = portalDir + '/' + url;
+            }
             
-            // Also check after a delay if frame loaded
-            setTimeout(() => {
+            frame.src = absoluteUrl;
+            
+            // Check if report loaded after delay
+            let loadTimeout = setTimeout(() => {
                 try {
+                    // Try to access frame content
                     if (frame.contentDocument && frame.contentDocument.body) {
                         // Report loaded successfully
+                        clearTimeout(loadTimeout);
                     }
                 } catch (e) {
-                    // Cross-origin or other error - this is normal for file://
+                    // Cross-origin error - this is normal for file://
+                    // But report might still be loading
                 }
-            }, 2000);
+            }, 3000);
+            
+            // Clear timeout when frame loads
+            frame.onload = function() {
+                clearTimeout(loadTimeout);
+            };
         }
         
         function goBack() {
