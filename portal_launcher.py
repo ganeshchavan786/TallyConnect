@@ -22,6 +22,19 @@ def get_resource_path(relative_path):
 
 def main():
     """Launch portal server."""
+    # Check if launched from startup (add --startup flag)
+    import os
+    startup_folder = os.path.join(os.getenv('APPDATA'), 
+                                   'Microsoft', 'Windows', 'Start Menu', 
+                                   'Programs', 'Startup')
+    current_exe = sys.executable if getattr(sys, 'frozen', False) else __file__
+    is_startup = os.path.dirname(os.path.abspath(current_exe)).lower() in startup_folder.lower() or \
+                 '--startup' in sys.argv
+    
+    # Add --startup flag if launched from startup
+    if is_startup and '--startup' not in sys.argv:
+        sys.argv.append('--startup')
+    
     # Get script directory
     if getattr(sys, 'frozen', False):
         # Running as compiled EXE
@@ -45,17 +58,19 @@ def main():
         import portal_server
         portal_server.start_server()
     except ImportError as e:
-        print(f"Error importing portal_server: {e}")
-        print(f"Current directory: {os.getcwd()}")
-        print(f"Script directory: {script_dir}")
-        if hasattr(sys, '_MEIPASS'):
-            print(f"MEIPASS: {sys._MEIPASS}")
-        input("Press Enter to exit...")
+        if not is_startup:
+            print(f"Error importing portal_server: {e}")
+            print(f"Current directory: {os.getcwd()}")
+            print(f"Script directory: {script_dir}")
+            if hasattr(sys, '_MEIPASS'):
+                print(f"MEIPASS: {sys._MEIPASS}")
+            input("Press Enter to exit...")
     except Exception as e:
-        print(f"Error starting portal: {e}")
-        import traceback
-        traceback.print_exc()
-        input("Press Enter to exit...")
+        if not is_startup:
+            print(f"Error starting portal: {e}")
+            import traceback
+            traceback.print_exc()
+            input("Press Enter to exit...")
 
 if __name__ == "__main__":
     main()

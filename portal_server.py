@@ -329,8 +329,33 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
         """Suppress default logging."""
         pass
 
+def is_startup_launch():
+    """Check if portal was launched from Windows startup (minimized mode)."""
+    # Check command-line argument (set by launcher)
+    if '--startup' in sys.argv or '--minimized' in sys.argv:
+        return True
+    
+    # Check if launched from startup folder
+    try:
+        startup_folder = os.path.join(os.getenv('APPDATA'), 
+                                     'Microsoft', 'Windows', 'Start Menu', 
+                                     'Programs', 'Startup')
+        current_exe = sys.executable if getattr(sys, 'frozen', False) else __file__
+        current_dir = os.path.dirname(os.path.abspath(current_exe))
+        
+        # If current directory is startup folder, it's a startup launch
+        if startup_folder.lower() in current_dir.lower():
+            return True
+    except:
+        pass
+    
+    return False
+
 def start_server():
     """Start the portal server."""
+    # Check if launched from startup (minimized mode)
+    startup_mode = is_startup_launch()
+    
     # Ensure we're in the right directory (works for both script and EXE)
     # In EXE mode, portal is bundled in sys._MEIPASS
     resource_dir = get_resource_dir()
@@ -338,50 +363,75 @@ def start_server():
     
     if os.path.exists(portal_path):
         os.chdir(portal_path)
-        print(f"[INFO] Portal directory found: {portal_path}")
+        if not startup_mode:
+            print(f"[INFO] Portal directory found: {portal_path}")
     else:
         # Try relative to current directory (for development)
         if os.path.exists("reports/portal"):
             os.chdir("reports/portal")
-            print(f"[INFO] Portal directory found: reports/portal")
+            if not startup_mode:
+                print(f"[INFO] Portal directory found: reports/portal")
         else:
-            print(f"[ERROR] Portal directory not found!")
-            print(f"Resource directory: {resource_dir}")
-            print(f"Looking for: {portal_path}")
-            print(f"Current directory: {os.getcwd()}")
-            if getattr(sys, 'frozen', False):
-                print(f"EXE mode - checking sys._MEIPASS: {sys._MEIPASS if hasattr(sys, '_MEIPASS') else 'N/A'}")
-            input("Press Enter to exit...")
+            # Always show error, even in startup mode
+            error_msg = f"[ERROR] Portal directory not found!\nResource directory: {resource_dir}\nLooking for: {portal_path}"
+            if startup_mode:
+                # Log to file if in startup mode
+                log_file = os.path.join(get_base_dir(), "portal_error.log")
+                with open(log_file, 'w') as f:
+                    f.write(error_msg)
+            else:
+                print(error_msg)
+                print(f"Current directory: {os.getcwd()}")
+                if getattr(sys, 'frozen', False):
+                    print(f"EXE mode - checking sys._MEIPASS: {sys._MEIPASS if hasattr(sys, '_MEIPASS') else 'N/A'}")
+                input("Press Enter to exit...")
             return
     
     try:
         with socketserver.TCPServer(("", PORT), PortalHandler) as httpd:
-            print("="*60)
-            print("TallyConnect Portal Server")
-            print("="*60)
-            print(f"\nServer running at: http://localhost:{PORT}")
-            print(f"Portal URL: http://localhost:{PORT}/index.html")
-            print("\nPress Ctrl+C to stop the server")
-            print("="*60)
-            print()
+            if not startup_mode:
+                # Show console output only if not in startup mode
+                print("="*60)
+                print("TallyConnect Portal Server")
+                print("="*60)
+                print(f"\nServer running at: http://localhost:{PORT}")
+                print(f"Portal URL: http://localhost:{PORT}/index.html")
+                print("\nPress Ctrl+C to stop the server")
+                print("="*60)
+                print()
             
-            # Open browser automatically
-            url = f"http://localhost:{PORT}/index.html"
-            webbrowser.open(url)
+            # Open browser only if manually launched (not from startup)
+            if not startup_mode:
+                url = f"http://localhost:{PORT}/index.html"
+                webbrowser.open(url)
             
             # Start server
             httpd.serve_forever()
     
     except KeyboardInterrupt:
-        print("\n\nServer stopped.")
+        if not startup_mode:
+            print("\n\nServer stopped.")
     except OSError as e:
         if "Address already in use" in str(e):
-            print(f"\n[ERROR] Port {PORT} is already in use!")
-            print(f"Please close other applications using port {PORT}")
-            print("Or modify PORT in portal_server.py")
+            error_msg = f"\n[ERROR] Port {PORT} is already in use!\nPlease close other applications using port {PORT}"
+            if startup_mode:
+                log_file = os.path.join(get_base_dir(), "portal_error.log")
+                with open(log_file, 'w') as f:
+                    f.write(error_msg)
+            else:
+                print(error_msg)
+                print("Or modify PORT in portal_server.py")
         else:
-            print(f"\n[ERROR] {e}")
-        input("Press Enter to exit...")
+            error_msg = f"\n[ERROR] {e}"
+            if startup_mode:
+                log_file = os.path.join(get_base_dir(), "portal_error.log")
+                with open(log_file, 'w') as f:
+                    f.write(error_msg)
+            else:
+                print(error_msg)
+        
+        if not startup_mode:
+            input("Press Enter to exit...")
 
 if __name__ == "__main__":
     start_server()

@@ -38,11 +38,11 @@ Name: "{group}\TallyConnect Portal"; Filename: "{app}\TallyConnectPortal.exe"
 Name: "{group}\Uninstall TallyConnect"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\TallyConnect"; Filename: "{app}\TallyConnect.exe"; Tasks: desktopicon
 Name: "{autodesktop}\TallyConnect Portal"; Filename: "{app}\TallyConnectPortal.exe"; Tasks: desktopicon
-Name: "{userstartup}\TallyConnect"; Filename: "{app}\TallyConnect.exe"; Tasks: startupicon
+; Portal auto-starts with Windows (always enabled)
+Name: "{userstartup}\TallyConnect Portal"; Filename: "{app}\TallyConnectPortal.exe"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
-Name: "startupicon"; Description: "Launch TallyConnect at Windows &startup"; GroupDescription: "Additional options:"; Flags: unchecked
 
 [Run]
 Filename: "{app}\TallyConnect.exe"; Description: "Launch TallyConnect now"; Flags: nowait postinstall skipifsilent
