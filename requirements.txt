@@ -1,0 +1,17 @@
+# TallyConnect - Modern Tally Sync Platform
+# Python Dependencies
+
+# Core Dependencies
+pyodbc>=5.0.0
+# ODBC connector for Tally database
+
+# GUI Framework (Built-in with Python)
+# tkinter - No separate install needed
+
+# Standard Library (No install needed)
+# sqlite3, threading, datetime, os, sys
+
+# Build Dependencies (Development Only)
+pyinstaller>=6.0.0
+# For creating standalone executable
+
