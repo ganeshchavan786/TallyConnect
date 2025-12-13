@@ -685,7 +685,16 @@
             const grid = document.getElementById('companyGrid');
             grid.innerHTML = '';
             
-            companies.forEach(company => {
+            // Debug logging
+            console.log(`[Portal] Displaying ${companies.length} companies`);
+            
+            if (companies.length === 0) {
+                grid.innerHTML = '<div class="loading">No companies found.<br><small>Please sync companies in TallyConnect app first.</small></div>';
+                return;
+            }
+            
+            companies.forEach((company, index) => {
+                console.log(`[Portal] Company ${index + 1}: ${company.name} (GUID: ${company.guid.substring(0, 20)}...)`);
                 const card = document.createElement('div');
                 card.className = 'company-card';
                 card.innerHTML = `

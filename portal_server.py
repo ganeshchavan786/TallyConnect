@@ -197,6 +197,12 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             
             conn.close()
             
+            # Debug logging
+            if not startup_mode:
+                print(f"[INFO] Found {len(companies)} synced companies:")
+                for comp in companies:
+                    print(f"  - {comp['name']} (Records: {comp['total_records']})")
+            
             # If no companies found, return empty array (not error)
             self.send_json_response(companies)
         except Exception as e:
