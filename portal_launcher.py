@@ -22,16 +22,27 @@ def get_resource_path(relative_path):
 
 def main():
     """Launch portal server."""
-    # Check if launched from startup (add --startup flag)
+    # Check if launched from startup folder
     import os
-    startup_folder = os.path.join(os.getenv('APPDATA'), 
-                                   'Microsoft', 'Windows', 'Start Menu', 
-                                   'Programs', 'Startup')
-    current_exe = sys.executable if getattr(sys, 'frozen', False) else __file__
-    is_startup = os.path.dirname(os.path.abspath(current_exe)).lower() in startup_folder.lower() or \
-                 '--startup' in sys.argv
+    is_startup = '--startup' in sys.argv
     
-    # Add --startup flag if launched from startup
+    # Try to detect startup launch
+    if not is_startup:
+        try:
+            # Check if parent is explorer (Windows startup)
+            import psutil
+            parent = psutil.Process().parent()
+            if parent.name().lower() in ['explorer.exe']:
+                # Check if we were launched from startup folder
+                # This is a heuristic - startup items are usually launched by explorer
+                is_startup = True
+        except ImportError:
+            # psutil not available, use alternative method
+            pass
+        except Exception:
+            pass
+    
+    # Add --startup flag if detected
     if is_startup and '--startup' not in sys.argv:
         sys.argv.append('--startup')
     
