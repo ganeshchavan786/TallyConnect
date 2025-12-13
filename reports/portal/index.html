@@ -219,10 +219,14 @@
         /* Report Viewer */
         .report-viewer {
             width: 100%;
-            height: calc(100vh - 100px);
+            min-height: calc(100vh - 100px);
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
             border: none;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: #f0f2f5;
+            padding: 20px;
         }
         
         .back-button {
@@ -313,7 +317,7 @@
         <!-- Report Viewer Page -->
         <div id="viewer" class="page">
             <button class="back-button" onclick="goBack()">← Back</button>
-            <iframe id="reportFrame" class="report-viewer"></iframe>
+            <div id="reportContent" class="report-viewer"></div>
         </div>
     </div>
     
@@ -715,12 +719,11 @@
         function showOutstandingReport() {
             if (!selectedCompany) return;
             
-            // Generate or load outstanding report
+            // Call API to get outstanding data (no file generation)
             const safeGuid = selectedCompany.guid.replace(/-/g, '_').replace(/\./g, '_');
             const safeAlterid = String(selectedCompany.alterid).replace(/\./g, '_');
-            // Use server API URL - generates on-demand from database
-            const reportUrl = getReportUrl(`api/reports/outstanding_${safeGuid}_${safeAlterid}.html`);
-            showReport(reportUrl, 'reports');
+            const apiUrl = `api/outstanding-data/${safeGuid}_${safeAlterid}`;
+            loadOutstandingReport(apiUrl, 'reports');
         }
         
         function getReportUrl(relativePath) {
@@ -801,198 +804,410 @@
             });
             event.currentTarget.classList.add('selected');
             
-            // Use original ledger name (not sanitized) for database lookup
+            // Use original ledger name
             const originalLedgerName = ledger.name;
             
-            // Sanitize ledger name only for URL/file path
-            let safeLedger = originalLedgerName.trim();
-            safeLedger = safeLedger.replace(/\s+/g, '_');  // Spaces to underscore
-            safeLedger = safeLedger.replace(/\//g, '_');   // Slash to underscore
-            safeLedger = safeLedger.replace(/\\/g, '_');   // Backslash to underscore
-            safeLedger = safeLedger.replace(/\r/g, '');    // Remove carriage return
-            safeLedger = safeLedger.replace(/\n/g, '');    // Remove newline
-            safeLedger = safeLedger.replace(/[^a-zA-Z0-9_\-]/g, '_');  // Only alphanumeric, underscore, hyphen
-            safeLedger = safeLedger.replace(/_+/g, '_');   // Multiple underscores to single
-            safeLedger = safeLedger.replace(/^_|_$/g, ''); // Remove leading/trailing underscores
-            
-            // Sanitize guid and alterid
+            // Sanitize guid and alterid for URL
             const safeGuid = selectedCompany.guid.replace(/-/g, '_').replace(/\./g, '_');
             const safeAlterid = String(selectedCompany.alterid).replace(/\./g, '_');
             
-            // Pass original ledger name as query parameter for server to use
-            // Server will use original name for database lookup
-            const reportUrl = getReportUrl(`api/reports/ledger_${safeGuid}_${safeAlterid}_${safeLedger}.html?ledger=${encodeURIComponent(originalLedgerName)}`);
-            showReport(reportUrl, 'ledgers');
+            // Call API to get ledger data (no file generation)
+            const apiUrl = `api/ledger-data/${safeGuid}_${safeAlterid}/${encodeURIComponent(originalLedgerName)}?from=01-04-2024&to=31-12-2025`;
+            loadLedgerReport(apiUrl, 'ledgers');
         }
         
         function showDashboard() {
             if (!selectedCompany) return;
             
+            // Call API to get dashboard data (no file generation)
             const safeGuid = selectedCompany.guid.replace(/-/g, '_').replace(/\./g, '_');
             const safeAlterid = String(selectedCompany.alterid).replace(/\./g, '_');
-            // Server generates on-demand from database
-            const reportUrl = getReportUrl(`api/reports/dashboard_${safeGuid}_${safeAlterid}.html`);
-            showReport(reportUrl, 'reports');
+            const apiUrl = `api/dashboard-data/${safeGuid}_${safeAlterid}`;
+            loadDashboardReport(apiUrl, 'reports');
         }
         
-        function showReport(url, fromPage) {
-            navigationHistory.push(fromPage);
-            showPage('viewer');
-            
-            const frame = document.getElementById('reportFrame');
-            
-            // Set loading message
-            frame.srcdoc = `
-                <html>
-                    <head><style>
-                        body { 
-                            font-family: 'Segoe UI', Arial; 
-                            text-align: center; 
-                            padding: 100px 50px; 
-                            background: #f0f2f5;
-                        }
-                        .loading { 
-                            color: #3498db; 
-                            font-size: 18px; 
-                            margin: 20px 0; 
-                        }
-                        .spinner {
-                            border: 4px solid #f3f3f3;
-                            border-top: 4px solid #3498db;
-                            border-radius: 50%;
-                            width: 40px;
-                            height: 40px;
-                            animation: spin 1s linear infinite;
-                            margin: 20px auto;
-                        }
-                        @keyframes spin {
-                            0% { transform: rotate(0deg); }
-                            100% { transform: rotate(360deg); }
-                        }
-                    </style></head>
-                    <body>
-                        <div class="spinner"></div>
-                        <div class="loading">Loading report...</div>
-                    </body>
-                </html>
-            `;
-            
-            // Handle load error
-            frame.onerror = function() {
-                frame.srcdoc = `
-                    <html>
-                        <head><style>
-                            body { 
-                                font-family: 'Segoe UI', Arial; 
-                                text-align: center; 
-                                padding: 50px; 
-                                background: #f0f2f5;
-                            }
-                            .error { 
-                                color: #e74c3c; 
-                                font-size: 20px; 
-                                font-weight: 600;
-                                margin: 20px 0; 
-                            }
-                            .info { 
-                                color: #7f8c8d; 
-                                font-size: 14px; 
-                                margin: 10px 0;
-                            }
-                            .file-path {
-                                background: #ecf0f1;
-                                padding: 10px;
-                                border-radius: 4px;
-                                font-family: monospace;
-                                font-size: 12px;
-                                margin: 20px auto;
-                                max-width: 600px;
-                                word-break: break-all;
-                            }
-                        </style></head>
-                        <body>
-                            <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
-                            <div class="error">Report file not found</div>
-                            <div class="info">File: ${url}</div>
-                            <div class="file-path">${url}</div>
-                            <div class="info" style="margin-top: 30px;">
-                                <strong>Solution:</strong><br>
-                                If using server mode, reports generate automatically from database.<br>
-                                Make sure <code style="background: #ecf0f1; padding: 2px 6px; border-radius: 3px;">START_PORTAL.bat</code> is running.
-                            </div>
-                        </body>
-                    </html>
-                `;
-            };
-            
-            // Load report - if URL is already absolute (server mode), use as-is
-            // Server generates report on-demand from database automatically
-            console.log('Loading report:', url);
-            frame.src = url;
-            
-            // Handle successful load
-            frame.onload = function() {
-                console.log('Report loaded successfully');
-                clearTimeout(loadTimeout);
-            };
-            
-            // Handle load error
-            frame.onerror = function() {
-                console.error('Error loading report:', url);
-                frame.srcdoc = `
-                    <html>
-                        <head><style>
-                            body { font-family: 'Segoe UI', Arial; text-align: center; padding: 50px; background: #f0f2f5; }
-                            .error { color: #e74c3c; font-size: 20px; font-weight: 600; margin: 20px 0; }
-                            .info { color: #7f8c8d; font-size: 14px; margin: 10px 0; }
-                        </style></head>
-                        <body>
-                            <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
-                            <div class="error">Error loading report</div>
-                            <div class="info">URL: ${url}</div>
-                            <div class="info">Check server console for errors</div>
-                        </body>
-                    </html>
-                `;
-            };
-            
-            // Check if report loaded after delay (timeout)
-            let loadTimeout = setTimeout(() => {
-                console.warn('Report loading timeout:', url);
-                // Check if still loading
-                try {
-                    if (frame.contentDocument && frame.contentDocument.body) {
-                        const bodyText = frame.contentDocument.body.innerText || '';
-                        if (bodyText.includes('Loading report')) {
-                            // Still loading, show timeout message
-                            frame.srcdoc = `
-                                <html>
-                                    <head><style>
-                                        body { font-family: 'Segoe UI', Arial; text-align: center; padding: 50px; background: #f0f2f5; }
-                                        .error { color: #e74c3c; font-size: 20px; font-weight: 600; margin: 20px 0; }
-                                        .info { color: #7f8c8d; font-size: 14px; margin: 10px 0; }
-                                    </style></head>
-                                    <body>
-                                        <div style="font-size: 48px; margin-bottom: 20px;">⏱️</div>
-                                        <div class="error">Report loading timeout</div>
-                                        <div class="info">The report is taking too long to generate.</div>
-                                        <div class="info">Please check server console for errors.</div>
-                                        <div class="info" style="margin-top: 20px; font-size: 12px; color: #95a5a6;">URL: ${url}</div>
-                                    </body>
-                                </html>
-                            `;
-                        }
-                    }
-                } catch (e) {
-                    // Cross-origin error - normal for same-origin, but might indicate issue
-                    console.warn('Cannot access frame content (might be CORS or still loading):', e);
-                }
-            }, 10000); // 10 second timeout
-        }
+        // OLD showReport function removed - now using API-based loading
+        // All reports use: loadLedgerReport, loadOutstandingReport, loadDashboardReport
         
         function goBack() {
             const previousPage = navigationHistory.pop() || 'reports';
             showPage(previousPage);
+        }
+        
+        // NEW: API-based report loading functions (no file generation)
+        
+        function loadLedgerReport(apiUrl, fromPage) {
+            navigationHistory.push(fromPage);
+            showPage('viewer');
+            
+            const contentDiv = document.getElementById('reportContent');
+            contentDiv.innerHTML = `
+                <div style="text-align: center; padding: 50px;">
+                    <div class="spinner" style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto;"></div>
+                    <div style="color: #3498db; font-size: 18px; margin: 20px 0;">Loading ledger report...</div>
+                </div>
+            `;
+            
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    renderLedgerReport(data);
+                })
+                .catch(error => {
+                    console.error('Error loading ledger report:', error);
+                    contentDiv.innerHTML = `
+                        <div style="text-align: center; padding: 50px; color: #e74c3c;">
+                            <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                            <div style="font-size: 20px; font-weight: 600; margin: 20px 0;">Error loading ledger report</div>
+                            <div style="color: #7f8c8d; font-size: 14px;">${error.message}</div>
+                        </div>
+                    `;
+                });
+        }
+        
+        function renderLedgerReport(data) {
+            const contentDiv = document.getElementById('reportContent');
+            
+            // Format currency
+            function formatCurrency(amount) {
+                if (amount < 0) return `-₹ ${Math.abs(amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                return `₹ ${amount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            }
+            
+            // Build HTML
+            let html = `
+                <div style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h2 style="color: #2c3e50; margin-bottom: 10px;">${data.company_name}</h2>
+                    <h3 style="color: #34495e; margin-bottom: 20px;">Ledger: ${data.ledger_name}</h3>
+                    <div style="margin-bottom: 20px; padding: 15px; background: #ecf0f1; border-radius: 4px;">
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; text-align: center;">
+                            <div>
+                                <div style="font-size: 12px; color: #7f8c8d;">Opening Balance</div>
+                                <div style="font-size: 18px; font-weight: 600; color: #2c3e50;">${formatCurrency(data.opening_balance)}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 12px; color: #7f8c8d;">Total Debit</div>
+                                <div style="font-size: 18px; font-weight: 600; color: #27ae60;">${formatCurrency(data.total_debit)}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 12px; color: #7f8c8d;">Total Credit</div>
+                                <div style="font-size: 18px; font-weight: 600; color: #e74c3c;">${formatCurrency(data.total_credit)}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 12px; color: #7f8c8d;">Closing Balance</div>
+                                <div style="font-size: 18px; font-weight: 600; color: #3498db;">${formatCurrency(data.closing_balance)}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 10px; color: #7f8c8d; font-size: 14px;">
+                        Period: ${data.from_date} to ${data.to_date} | Transactions: ${data.total_transactions}
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                            <thead>
+                                <tr style="background: #34495e; color: white;">
+                                    <th style="padding: 12px; text-align: left; border: 1px solid #2c3e50;">Date</th>
+                                    <th style="padding: 12px; text-align: left; border: 1px solid #2c3e50;">Type</th>
+                                    <th style="padding: 12px; text-align: left; border: 1px solid #2c3e50;">Voucher No</th>
+                                    <th style="padding: 12px; text-align: left; border: 1px solid #2c3e50;">Narration</th>
+                                    <th style="padding: 12px; text-align: right; border: 1px solid #2c3e50;">Debit</th>
+                                    <th style="padding: 12px; text-align: right; border: 1px solid #2c3e50;">Credit</th>
+                                    <th style="padding: 12px; text-align: right; border: 1px solid #2c3e50;">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            data.transactions.forEach(trans => {
+                const balanceClass = trans.balance > 0 ? 'color: #27ae60;' : trans.balance < 0 ? 'color: #e74c3c;' : '';
+                html += `
+                    <tr style="border-bottom: 1px solid #ecf0f1;">
+                        <td style="padding: 10px;">${trans.date}</td>
+                        <td style="padding: 10px;">${trans.voucher_type}</td>
+                        <td style="padding: 10px;">${trans.voucher_number}</td>
+                        <td style="padding: 10px;">${trans.narration.substring(0, 50)}${trans.narration.length > 50 ? '...' : ''}</td>
+                        <td style="padding: 10px; text-align: right; color: #27ae60;">${trans.debit > 0 ? formatCurrency(trans.debit) : '-'}</td>
+                        <td style="padding: 10px; text-align: right; color: #e74c3c;">${trans.credit > 0 ? formatCurrency(trans.credit) : '-'}</td>
+                        <td style="padding: 10px; text-align: right; font-weight: 600; ${balanceClass}">${formatCurrency(Math.abs(trans.balance))}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            contentDiv.innerHTML = html;
+        }
+        
+        function loadOutstandingReport(apiUrl, fromPage) {
+            navigationHistory.push(fromPage);
+            showPage('viewer');
+            
+            const contentDiv = document.getElementById('reportContent');
+            contentDiv.innerHTML = `
+                <div style="text-align: center; padding: 50px;">
+                    <div class="spinner" style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto;"></div>
+                    <div style="color: #3498db; font-size: 18px; margin: 20px 0;">Loading outstanding report...</div>
+                </div>
+            `;
+            
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    renderOutstandingReport(data);
+                })
+                .catch(error => {
+                    console.error('Error loading outstanding report:', error);
+                    contentDiv.innerHTML = `
+                        <div style="text-align: center; padding: 50px; color: #e74c3c;">
+                            <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                            <div style="font-size: 20px; font-weight: 600; margin: 20px 0;">Error loading outstanding report</div>
+                            <div style="color: #7f8c8d; font-size: 14px;">${error.message}</div>
+                        </div>
+                    `;
+                });
+        }
+        
+        function renderOutstandingReport(data) {
+            const contentDiv = document.getElementById('reportContent');
+            
+            function formatCurrency(amount) {
+                if (amount < 0) return `-₹ ${Math.abs(amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                return `₹ ${amount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            }
+            
+            let html = `
+                <div style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h2 style="color: #2c3e50; margin-bottom: 10px;">${data.company_name}</h2>
+                    <h3 style="color: #34495e; margin-bottom: 20px;">Outstanding Report</h3>
+                    <div style="margin-bottom: 20px; padding: 15px; background: #ecf0f1; border-radius: 4px;">
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; text-align: center;">
+                            <div>
+                                <div style="font-size: 12px; color: #7f8c8d;">Total Parties</div>
+                                <div style="font-size: 18px; font-weight: 600; color: #2c3e50;">${data.total_parties}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 12px; color: #7f8c8d;">Total Debit</div>
+                                <div style="font-size: 18px; font-weight: 600; color: #27ae60;">${formatCurrency(data.total_debit)}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 12px; color: #7f8c8d;">Total Credit</div>
+                                <div style="font-size: 18px; font-weight: 600; color: #e74c3c;">${formatCurrency(data.total_credit)}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 12px; color: #7f8c8d;">Total Outstanding</div>
+                                <div style="font-size: 18px; font-weight: 600; color: #3498db;">${formatCurrency(data.total_outstanding)}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 10px; color: #7f8c8d; font-size: 14px;">
+                        As on: ${data.as_on_date}
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                            <thead>
+                                <tr style="background: #34495e; color: white;">
+                                    <th style="padding: 12px; text-align: left; border: 1px solid #2c3e50;">Party Name</th>
+                                    <th style="padding: 12px; text-align: right; border: 1px solid #2c3e50;">Debit</th>
+                                    <th style="padding: 12px; text-align: right; border: 1px solid #2c3e50;">Credit</th>
+                                    <th style="padding: 12px; text-align: right; border: 1px solid #2c3e50;">Balance</th>
+                                    <th style="padding: 12px; text-align: center; border: 1px solid #2c3e50;">Transactions</th>
+                                    <th style="padding: 12px; text-align: center; border: 1px solid #2c3e50;">Last Transaction</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            data.parties.forEach(party => {
+                const balanceClass = party.balance > 0 ? 'color: #27ae60;' : party.balance < 0 ? 'color: #e74c3c;' : '';
+                html += `
+                    <tr style="border-bottom: 1px solid #ecf0f1;">
+                        <td style="padding: 10px; font-weight: 600;">${party.party_name}</td>
+                        <td style="padding: 10px; text-align: right; color: #27ae60;">${formatCurrency(party.debit)}</td>
+                        <td style="padding: 10px; text-align: right; color: #e74c3c;">${formatCurrency(party.credit)}</td>
+                        <td style="padding: 10px; text-align: right; font-weight: 600; ${balanceClass}">${formatCurrency(Math.abs(party.balance))}</td>
+                        <td style="padding: 10px; text-align: center;">${party.transaction_count}</td>
+                        <td style="padding: 10px; text-align: center; font-size: 12px; color: #7f8c8d;">${party.last_transaction || '-'}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            contentDiv.innerHTML = html;
+        }
+        
+        function loadDashboardReport(apiUrl, fromPage) {
+            navigationHistory.push(fromPage);
+            showPage('viewer');
+            
+            const contentDiv = document.getElementById('reportContent');
+            contentDiv.innerHTML = `
+                <div style="text-align: center; padding: 50px;">
+                    <div class="spinner" style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto;"></div>
+                    <div style="color: #3498db; font-size: 18px; margin: 20px 0;">Loading dashboard...</div>
+                </div>
+            `;
+            
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    renderDashboardReport(data);
+                })
+                .catch(error => {
+                    console.error('Error loading dashboard:', error);
+                    contentDiv.innerHTML = `
+                        <div style="text-align: center; padding: 50px; color: #e74c3c;">
+                            <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                            <div style="font-size: 20px; font-weight: 600; margin: 20px 0;">Error loading dashboard</div>
+                            <div style="color: #7f8c8d; font-size: 14px;">${error.message}</div>
+                        </div>
+                    `;
+                });
+        }
+        
+        function renderDashboardReport(data) {
+            const contentDiv = document.getElementById('reportContent');
+            
+            function formatCurrency(amount) {
+                if (amount < 0) return `-₹ ${Math.abs(amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                return `₹ ${amount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            }
+            
+            let html = `
+                <div style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h2 style="color: #2c3e50; margin-bottom: 20px;">${data.company_name} - Dashboard</h2>
+                    
+                    <!-- Summary Stats -->
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px;">
+                        <div style="padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px;">
+                            <div style="font-size: 14px; opacity: 0.9;">Total Transactions</div>
+                            <div style="font-size: 32px; font-weight: 600; margin-top: 10px;">${data.stats.total_transactions.toLocaleString()}</div>
+                        </div>
+                        <div style="padding: 20px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border-radius: 8px;">
+                            <div style="font-size: 14px; opacity: 0.9;">Total Parties</div>
+                            <div style="font-size: 32px; font-weight: 600; margin-top: 10px;">${data.stats.total_parties.toLocaleString()}</div>
+                        </div>
+                        <div style="padding: 20px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; border-radius: 8px;">
+                            <div style="font-size: 14px; opacity: 0.9;">Net Balance</div>
+                            <div style="font-size: 32px; font-weight: 600; margin-top: 10px;">${formatCurrency(data.stats.net_balance)}</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Top Debtors and Creditors -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                        <div style="padding: 20px; background: #ecf0f1; border-radius: 8px;">
+                            <h3 style="color: #2c3e50; margin-bottom: 15px;">Top 10 Debtors</h3>
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #34495e; color: white;">
+                                        <th style="padding: 8px; text-align: left;">Party</th>
+                                        <th style="padding: 8px; text-align: right;">Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+            `;
+            
+            data.top_debtors.forEach((debtor, idx) => {
+                html += `
+                    <tr style="border-bottom: 1px solid #bdc3c7;">
+                        <td style="padding: 8px;">${idx + 1}. ${debtor.party_name}</td>
+                        <td style="padding: 8px; text-align: right; color: #27ae60; font-weight: 600;">${formatCurrency(debtor.balance)}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="padding: 20px; background: #ecf0f1; border-radius: 8px;">
+                            <h3 style="color: #2c3e50; margin-bottom: 15px;">Top 10 Creditors</h3>
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #34495e; color: white;">
+                                        <th style="padding: 8px; text-align: left;">Party</th>
+                                        <th style="padding: 8px; text-align: right;">Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+            `;
+            
+            data.top_creditors.forEach((creditor, idx) => {
+                html += `
+                    <tr style="border-bottom: 1px solid #bdc3c7;">
+                        <td style="padding: 8px;">${idx + 1}. ${creditor.party_name}</td>
+                        <td style="padding: 8px; text-align: right; color: #e74c3c; font-weight: 600;">${formatCurrency(creditor.balance)}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Voucher Type Summary -->
+                    <div style="margin-bottom: 30px;">
+                        <h3 style="color: #2c3e50; margin-bottom: 15px;">Voucher Type Summary</h3>
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #34495e; color: white;">
+                                        <th style="padding: 12px; text-align: left;">Voucher Type</th>
+                                        <th style="padding: 12px; text-align: right;">Count</th>
+                                        <th style="padding: 12px; text-align: right;">Total Debit</th>
+                                        <th style="padding: 12px; text-align: right;">Total Credit</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+            `;
+            
+            data.voucher_types.forEach(vt => {
+                html += `
+                    <tr style="border-bottom: 1px solid #ecf0f1;">
+                        <td style="padding: 10px;">${vt.type}</td>
+                        <td style="padding: 10px; text-align: right;">${vt.count}</td>
+                        <td style="padding: 10px; text-align: right; color: #27ae60;">${formatCurrency(vt.debit)}</td>
+                        <td style="padding: 10px; text-align: right; color: #e74c3c;">${formatCurrency(vt.credit)}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            contentDiv.innerHTML = html;
         }
     </script>
 </body>

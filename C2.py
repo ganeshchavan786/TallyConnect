@@ -23,6 +23,12 @@ from datetime import datetime, timedelta
 import traceback
 import os
 import re
+try:
+    import pystray
+    from PIL import Image, ImageDraw
+    TRAY_AVAILABLE = True
+except ImportError:
+    TRAY_AVAILABLE = False
 
 # ---------- Configuration ----------
 DB_FILE = "TallyConnectDb.db"
@@ -186,6 +192,12 @@ class BizAnalystApp:
         self.batch_size_var = tk.IntVar(value=BATCH_SIZE)
         self.slice_var = tk.BooleanVar(value=False)
         self.slice_days_var = tk.IntVar(value=7)
+        
+        # System tray support
+        self.tray_icon = None
+        self.tray_thread = None
+        if TRAY_AVAILABLE:
+            self._setup_tray()
         
         self._build_ui()
         try:
@@ -1783,16 +1795,78 @@ Keyboard Shortcuts:
                 pass
             time.sleep(5)
 
+    def _setup_tray(self):
+        """Setup system tray icon."""
+        if not TRAY_AVAILABLE:
+            return
+        
+        def create_icon():
+            # Create a 64x64 image with blue background
+            image = Image.new('RGB', (64, 64), color='#3498db')
+            draw = ImageDraw.Draw(image)
+            # Draw a simple "T" for TallyConnect
+            draw.text((32, 32), "T", fill='white', anchor="mm")
+            return image
+        
+        def show_window(icon=None, item=None):
+            """Show main window."""
+            self.root.deiconify()
+            self.root.lift()
+            self.root.focus_force()
+        
+        def hide_window():
+            """Hide window to tray."""
+            self.root.withdraw()
+        
+        def quit_app(icon=None, item=None):
+            """Quit application."""
+            if self.tray_icon:
+                self.tray_icon.stop()
+            try:
+                self.auto_sync_stop_event.set()
+            except:
+                pass
+            try:
+                self.db_conn.close()
+            except:
+                pass
+            self.root.quit()
+            self.root.destroy()
+        
+        # Menu items
+        menu = pystray.Menu(
+            pystray.MenuItem("Show TallyConnect", show_window),
+            pystray.MenuItem("Hide to Tray", hide_window),
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem("Exit", quit_app)
+        )
+        
+        # Create icon
+        self.tray_icon = pystray.Icon("TallyConnect", create_icon(), "TallyConnect - Modern Tally Sync Platform", menu)
+        
+        # Start tray icon in separate thread
+        def run_tray():
+            self.tray_icon.run()
+        
+        self.tray_thread = threading.Thread(target=run_tray, daemon=True)
+        self.tray_thread.start()
+    
     def on_close(self):
-        try:
-            self.auto_sync_stop_event.set()
-        except:
-            pass
-        try:
-            self.db_conn.close()
-        except:
-            pass
-        self.root.destroy()
+        """Handle window close - minimize to tray instead of closing."""
+        if TRAY_AVAILABLE and self.tray_icon:
+            # Hide window to tray
+            self.root.withdraw()
+        else:
+            # No tray available, close normally
+            try:
+                self.auto_sync_stop_event.set()
+            except:
+                pass
+            try:
+                self.db_conn.close()
+            except:
+                pass
+            self.root.destroy()
 
 def main():
     root = tk.Tk()
