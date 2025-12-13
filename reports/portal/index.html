@@ -593,8 +593,11 @@
         
         // Load companies on page load
         window.onload = function() {
-            // Try to use embedded data first
-            if (typeof COMPANIES_DATA !== 'undefined') {
+            // If running through server, always fetch from API (reads from database)
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                loadCompanies(); // Server reads from database
+            } else if (typeof COMPANIES_DATA !== 'undefined') {
+                // File protocol - use embedded data
                 companiesData = COMPANIES_DATA;
                 displayCompanies(companiesData);
             } else {
@@ -632,6 +635,21 @@
         }
         
         function loadCompanies() {
+            // If running through server, use API endpoint (reads from database)
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                fetch('api/companies.json')
+                    .then(response => response.json())
+                    .then(companies => {
+                        companiesData = companies;
+                        displayCompanies(companies);
+                    })
+                    .catch(error => {
+                        console.error('Error loading companies:', error);
+                        document.getElementById('companyGrid').innerHTML = 
+                            '<div class="loading">Error loading companies. Make sure server is running.</div>';
+                    });
+                return;
+            }
             // Try to fetch from API (for HTTP server)
             if (window.location.protocol === 'file:') {
                 // File protocol - use embedded data
@@ -700,8 +718,19 @@
             // Generate or load outstanding report
             const safeGuid = selectedCompany.guid.replace(/-/g, '_').replace(/\./g, '_');
             const safeAlterid = String(selectedCompany.alterid).replace(/\./g, '_');
-            const reportUrl = `api/reports/outstanding_${safeGuid}_${safeAlterid}.html`;
+            // Use server API URL - generates on-demand from database
+            const reportUrl = getReportUrl(`api/reports/outstanding_${safeGuid}_${safeAlterid}.html`);
             showReport(reportUrl, 'reports');
+        }
+        
+        function getReportUrl(relativePath) {
+            // If running through server (localhost:8000), use full URL
+            // Server will generate report on-demand from database
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                return `${window.location.protocol}//${window.location.host}/${relativePath}`;
+            }
+            // File protocol - use relative (for static testing)
+            return relativePath;
         }
         
         function showLedgerSelection() {
@@ -785,8 +814,8 @@
             const safeGuid = selectedCompany.guid.replace(/-/g, '_').replace(/\./g, '_');
             const safeAlterid = String(selectedCompany.alterid).replace(/\./g, '_');
             
-            // Show ledger report
-            const reportUrl = `api/reports/ledger_${safeGuid}_${safeAlterid}_${safeLedger}.html`;
+            // Show ledger report - server generates on-demand from database
+            const reportUrl = getReportUrl(`api/reports/ledger_${safeGuid}_${safeAlterid}_${safeLedger}.html`);
             showReport(reportUrl, 'ledgers');
         }
         
@@ -795,7 +824,8 @@
             
             const safeGuid = selectedCompany.guid.replace(/-/g, '_').replace(/\./g, '_');
             const safeAlterid = String(selectedCompany.alterid).replace(/\./g, '_');
-            const reportUrl = `api/reports/dashboard_${safeGuid}_${safeAlterid}.html`;
+            // Server generates on-demand from database
+            const reportUrl = getReportUrl(`api/reports/dashboard_${safeGuid}_${safeAlterid}.html`);
             showReport(reportUrl, 'reports');
         }
         
@@ -881,25 +911,17 @@
                             <div class="file-path">${url}</div>
                             <div class="info" style="margin-top: 30px;">
                                 <strong>Solution:</strong><br>
-                                Please run: <code style="background: #ecf0f1; padding: 2px 6px; border-radius: 3px;">python generate_portal.py</code><br>
-                                This will generate all ledger reports.
+                                If using server mode, reports generate automatically from database.<br>
+                                Make sure <code style="background: #ecf0f1; padding: 2px 6px; border-radius: 3px;">START_PORTAL.bat</code> is running.
                             </div>
                         </body>
                     </html>
                 `;
             };
             
-            // Try to load report
-            // Use absolute path for file:// protocol
-            let absoluteUrl = url;
-            if (window.location.protocol === 'file:') {
-                // Get current directory
-                const currentPath = window.location.pathname;
-                const portalDir = currentPath.substring(0, currentPath.lastIndexOf('/'));
-                absoluteUrl = portalDir + '/' + url;
-            }
-            
-            frame.src = absoluteUrl;
+            // Load report - if URL is already absolute (server mode), use as-is
+            // Server generates report on-demand from database automatically
+            frame.src = url;
             
             // Check if report loaded after delay
             let loadTimeout = setTimeout(() => {

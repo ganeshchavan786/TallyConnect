@@ -15,7 +15,10 @@ Desktop → "TallyConnect Portal" → Double-click
 ```
 START_PORTAL.bat → Double-click
 ```
-**सर्वात सोपा!** Reports automatically generate होतात on-demand.
+**सर्वात सोपा!** 
+- Server starts → Database read करते → Reports on-demand generate होतात
+- Click करताच report database मधून read होऊन show होते
+- **No pre-generation needed!**
 
 ### **Option 3: After Building EXE**
 ```
@@ -76,10 +79,11 @@ python generate_portal.py
 START_PORTAL.bat → Double-click
 ```
 
-**Or if you need to regenerate reports first:**
-```
-GENERATE_AND_START_PORTAL.bat → Double-click
-```
+**How it works:**
+1. Server starts on `http://localhost:8000`
+2. Browser opens automatically
+3. Click company → Click report → **Server reads database → Generates report → Shows instantly!**
+4. **No pre-generation needed** - Everything happens on-demand!
 
 ---
 
