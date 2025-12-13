@@ -297,11 +297,25 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                 # Temporarily disable browser opening
                 original_open = self.generator._open_in_browser
                 self.generator._open_in_browser = lambda x: None
-                report_path = self.generator.generate_ledger_report(
-                    company_name, guid, alterid, ledger_name,
-                    "01-04-2024", "31-12-2025"
-                )
-                self.generator._open_in_browser = original_open
+                
+                # Generate report with error handling
+                try:
+                    print(f"[INFO] Generating ledger report for: {company_name} - {ledger_name}")
+                    report_path = self.generator.generate_ledger_report(
+                        company_name, guid, alterid, ledger_name,
+                        "01-04-2024", "31-12-2025"
+                    )
+                    print(f"[INFO] Report generated: {report_path}")
+                    if not report_path or not os.path.exists(report_path):
+                        raise FileNotFoundError(f"Report not generated: {report_path}")
+                except Exception as e:
+                    print(f"[ERROR] Report generation failed: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    self.send_error(500, f"Error generating ledger report: {str(e)}")
+                    return
+                finally:
+                    self.generator._open_in_browser = original_open
             else:
                 self.send_error(400, f"Unknown report type: {report_type}")
                 return

@@ -927,26 +927,67 @@
             
             // Load report - if URL is already absolute (server mode), use as-is
             // Server generates report on-demand from database automatically
+            console.log('Loading report:', url);
             frame.src = url;
             
-            // Check if report loaded after delay
-            let loadTimeout = setTimeout(() => {
-                try {
-                    // Try to access frame content
-                    if (frame.contentDocument && frame.contentDocument.body) {
-                        // Report loaded successfully
-                        clearTimeout(loadTimeout);
-                    }
-                } catch (e) {
-                    // Cross-origin error - this is normal for file://
-                    // But report might still be loading
-                }
-            }, 3000);
-            
-            // Clear timeout when frame loads
+            // Handle successful load
             frame.onload = function() {
+                console.log('Report loaded successfully');
                 clearTimeout(loadTimeout);
             };
+            
+            // Handle load error
+            frame.onerror = function() {
+                console.error('Error loading report:', url);
+                frame.srcdoc = `
+                    <html>
+                        <head><style>
+                            body { font-family: 'Segoe UI', Arial; text-align: center; padding: 50px; background: #f0f2f5; }
+                            .error { color: #e74c3c; font-size: 20px; font-weight: 600; margin: 20px 0; }
+                            .info { color: #7f8c8d; font-size: 14px; margin: 10px 0; }
+                        </style></head>
+                        <body>
+                            <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                            <div class="error">Error loading report</div>
+                            <div class="info">URL: ${url}</div>
+                            <div class="info">Check server console for errors</div>
+                        </body>
+                    </html>
+                `;
+            };
+            
+            // Check if report loaded after delay (timeout)
+            let loadTimeout = setTimeout(() => {
+                console.warn('Report loading timeout:', url);
+                // Check if still loading
+                try {
+                    if (frame.contentDocument && frame.contentDocument.body) {
+                        const bodyText = frame.contentDocument.body.innerText || '';
+                        if (bodyText.includes('Loading report')) {
+                            // Still loading, show timeout message
+                            frame.srcdoc = `
+                                <html>
+                                    <head><style>
+                                        body { font-family: 'Segoe UI', Arial; text-align: center; padding: 50px; background: #f0f2f5; }
+                                        .error { color: #e74c3c; font-size: 20px; font-weight: 600; margin: 20px 0; }
+                                        .info { color: #7f8c8d; font-size: 14px; margin: 10px 0; }
+                                    </style></head>
+                                    <body>
+                                        <div style="font-size: 48px; margin-bottom: 20px;">⏱️</div>
+                                        <div class="error">Report loading timeout</div>
+                                        <div class="info">The report is taking too long to generate.</div>
+                                        <div class="info">Please check server console for errors.</div>
+                                        <div class="info" style="margin-top: 20px; font-size: 12px; color: #95a5a6;">URL: ${url}</div>
+                                    </body>
+                                </html>
+                            `;
+                        }
+                    }
+                } catch (e) {
+                    // Cross-origin error - normal for same-origin, but might indicate issue
+                    console.warn('Cannot access frame content (might be CORS or still loading):', e);
+                }
+            }, 10000); // 10 second timeout
         }
         
         function goBack() {
