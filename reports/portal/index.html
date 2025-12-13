@@ -785,6 +785,8 @@
                         Transactions: ${ledger.count || 0}
                     </div>
                 `;
+                // Store original ledger name in data attribute
+                item.setAttribute('data-ledger-name', ledger.name);
                 item.onclick = () => selectLedger(ledger);
                 list.appendChild(item);
             });
@@ -799,8 +801,11 @@
             });
             event.currentTarget.classList.add('selected');
             
-            // Sanitize ledger name to match file naming
-            let safeLedger = ledger.name.trim();
+            // Use original ledger name (not sanitized) for database lookup
+            const originalLedgerName = ledger.name;
+            
+            // Sanitize ledger name only for URL/file path
+            let safeLedger = originalLedgerName.trim();
             safeLedger = safeLedger.replace(/\s+/g, '_');  // Spaces to underscore
             safeLedger = safeLedger.replace(/\//g, '_');   // Slash to underscore
             safeLedger = safeLedger.replace(/\\/g, '_');   // Backslash to underscore
@@ -814,8 +819,9 @@
             const safeGuid = selectedCompany.guid.replace(/-/g, '_').replace(/\./g, '_');
             const safeAlterid = String(selectedCompany.alterid).replace(/\./g, '_');
             
-            // Show ledger report - server generates on-demand from database
-            const reportUrl = getReportUrl(`api/reports/ledger_${safeGuid}_${safeAlterid}_${safeLedger}.html`);
+            // Pass original ledger name as query parameter for server to use
+            // Server will use original name for database lookup
+            const reportUrl = getReportUrl(`api/reports/ledger_${safeGuid}_${safeAlterid}_${safeLedger}.html?ledger=${encodeURIComponent(originalLedgerName)}`);
             showReport(reportUrl, 'ledgers');
         }
         

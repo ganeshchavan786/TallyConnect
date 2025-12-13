@@ -196,9 +196,14 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
     
     def generate_and_serve_report(self, path):
         """Generate report on-demand and serve it."""
+        # Parse query parameters for original ledger name
+        parsed = urlparse(path)
+        query_params = parse_qs(parsed.query)
+        original_ledger_name = query_params.get('ledger', [None])[0] if query_params.get('ledger') else None
+        
         # Extract report info from path
         # Format: /api/reports/{type}_{guid}_{alterid}_{ledger?}.html
-        filename = os.path.basename(path)
+        filename = os.path.basename(parsed.path)
         parts = filename.replace('.html', '').split('_')
         
         if len(parts) < 3:
