@@ -1,0 +1,235 @@
+/* 
+ * TallyConnect - Main CSS
+ * Base styles for all reports
+ */
+
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+    color: #2c3e50;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    overflow: hidden;
+}
+
+/* Header Styles */
+.report-header {
+    background: linear-gradient(135deg, #3498db 0%, #2c3e50 100%);
+    color: white;
+    padding: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo h1 {
+    font-size: 32px;
+    margin-bottom: 5px;
+}
+
+.logo p {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.company-info {
+    text-align: right;
+}
+
+.company-info h2 {
+    font-size: 28px;
+    margin-bottom: 5px;
+}
+
+.company-info p {
+    font-size: 16px;
+    opacity: 0.8;
+}
+
+/* Main Content */
+.report-content {
+    padding: 40px;
+    min-height: 400px;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+thead {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: white;
+}
+
+th {
+    padding: 15px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+}
+
+tbody tr {
+    border-bottom: 1px solid #ecf0f1;
+    transition: background 0.3s;
+}
+
+tbody tr:hover {
+    background: #f8f9fa;
+}
+
+td {
+    padding: 15px;
+    font-size: 14px;
+}
+
+/* Buttons */
+button, .btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-print {
+    background: #3498db;
+    color: white;
+}
+
+.btn-print:hover {
+    background: #2980b9;
+    transform: translateY(-2px);
+}
+
+.btn-export {
+    background: #27ae60;
+    color: white;
+    margin-left: 10px;
+}
+
+.btn-export:hover {
+    background: #229954;
+    transform: translateY(-2px);
+}
+
+/* Footer */
+.report-footer {
+    background: #2c3e50;
+    color: white;
+    padding: 30px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.footer-left p {
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+/* Utility Classes */
+.text-right {
+    text-align: right;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-success {
+    color: #27ae60;
+}
+
+.text-danger {
+    color: #e74c3c;
+}
+
+.amount {
+    font-weight: bold;
+}
+
+.amount-positive {
+    color: #27ae60;
+}
+
+.amount-negative {
+    color: #e74c3c;
+}
+
+/* Print Styles */
+@media print {
+    body {
+        background: white;
+        padding: 0;
+    }
+    
+    .container {
+        box-shadow: none;
+    }
+    
+    button, .btn {
+        display: none;
+    }
+    
+    .report-footer {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .report-header {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .company-info {
+        text-align: center;
+        margin-top: 20px;
+    }
+    
+    .report-content {
+        padding: 20px;
+    }
+    
+    table {
+        font-size: 12px;
+    }
+    
+    th, td {
+        padding: 10px 8px;
+    }
+    
+    .report-footer {
+        flex-direction: column;
+        gap: 20px;
+    }
+}
+
