@@ -18,9 +18,11 @@ from urllib.parse import urlparse, parse_qs
 from reports import ReportGenerator
 from database.queries import ReportQueries
 
-DB_FILE = "TallyConnectDb.db"
+# Get absolute path to database (works from any directory)
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_FILE = os.path.join(SCRIPT_DIR, "TallyConnectDb.db")
 PORT = 8000
-PORTAL_DIR = os.path.join(os.path.dirname(__file__), "reports", "portal")
+PORTAL_DIR = os.path.join(SCRIPT_DIR, "reports", "portal")
 
 class PortalHandler(http.server.SimpleHTTPRequestHandler):
     """Custom handler for portal requests."""
@@ -77,7 +79,14 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
     def send_companies(self):
         """Send companies list."""
         try:
-            conn = sqlite3.connect(DB_FILE)
+            # Use absolute path to database
+            db_path = os.path.join(SCRIPT_DIR, "TallyConnectDb.db")
+            if not os.path.exists(db_path):
+                print(f"[ERROR] Database not found at: {db_path}")
+                self.send_json_response([])
+                return
+            
+            conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
@@ -98,9 +107,12 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json_response(companies)
         except Exception as e:
             print(f"[ERROR] send_companies: {e}")
+            print(f"[DEBUG] DB_FILE path: {DB_FILE}")
+            print(f"[DEBUG] DB_FILE exists: {os.path.exists(DB_FILE)}")
             import traceback
             traceback.print_exc()
-            self.send_error(500, f"Error loading companies: {str(e)}")
+            # Return empty array instead of error (so UI doesn't break)
+            self.send_json_response([])
     
     def send_ledgers(self, path):
         """Send ledgers list for a company."""
