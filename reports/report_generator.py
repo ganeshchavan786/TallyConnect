@@ -64,6 +64,42 @@ class ReportGenerator:
         with open(template_path, 'r', encoding='utf-8') as f:
             return f.read()
     
+    def _load_css(self, css_file: str) -> str:
+        """Load CSS file and return as string."""
+        css_path = os.path.join(self.static_dir, 'css', css_file)
+        with open(css_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    
+    def _load_js(self, js_file: str) -> str:
+        """Load JavaScript file and return as string."""
+        js_path = os.path.join(self.static_dir, 'js', js_file)
+        with open(js_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    
+    def _embed_assets(self, html: str) -> str:
+        """Embed CSS and JS inline in HTML."""
+        # Replace CSS links with inline styles
+        html = html.replace(
+            '<link rel="stylesheet" href="../static/css/main.css">',
+            f'<style>\n{self._load_css("main.css")}\n</style>'
+        )
+        html = html.replace(
+            '<link rel="stylesheet" href="../static/css/reports.css">',
+            f'<style>\n{self._load_css("reports.css")}\n</style>'
+        )
+        
+        # Replace JS scripts with inline scripts
+        html = html.replace(
+            '<script src="../static/js/filters.js"></script>',
+            f'<script>\n{self._load_js("filters.js")}\n</script>'
+        )
+        html = html.replace(
+            '<script src="../static/js/export.js"></script>',
+            f'<script>\n{self._load_js("export.js")}\n</script>'
+        )
+        
+        return html
+    
     def generate_outstanding_report(
         self,
         company_name: str,
@@ -159,6 +195,9 @@ class ReportGenerator:
             html = html.replace('{% TOTAL_COUNT %}', str(len(parties)))
             html = html.replace('{% TOTAL_PARTIES %}', str(len(parties)))
             html = html.replace('{% GENERATED_DATE %}', datetime.now().strftime("%d-%m-%Y %H:%M:%S"))
+            
+            # Embed CSS and JS inline
+            html = self._embed_assets(html)
             
             # Save report
             report_path = get_report_path('outstanding', company_name)
@@ -265,6 +304,9 @@ class ReportGenerator:
             html = html.replace('{% NET_MOVEMENT %}', format_currency(abs(net_movement)))
             html = html.replace('{% TOTAL_TRANSACTIONS %}', str(len(transactions)))
             html = html.replace('{% GENERATED_DATE %}', datetime.now().strftime("%d-%m-%Y %H:%M:%S"))
+            
+            # Embed CSS and JS inline
+            html = self._embed_assets(html)
             
             # Save report
             report_path = get_report_path('ledger', f"{company_name}_{ledger_name}")
@@ -393,6 +435,9 @@ class ReportGenerator:
             html = html.replace('{% VOUCHER_TYPE_CHART_DATA %}', json.dumps(voucher_type_chart_data))
             html = html.replace('{% MONTHLY_TREND_CHART_DATA %}', json.dumps(monthly_trend_chart_data))
             html = html.replace('{% GENERATED_DATE %}', datetime.now().strftime("%d-%m-%Y %H:%M:%S"))
+            
+            # Embed CSS and JS inline (Chart.js CDN link remains)
+            html = self._embed_assets(html)
             
             # Save report
             report_path = get_report_path('dashboard', company_name)
