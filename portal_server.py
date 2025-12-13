@@ -18,8 +18,17 @@ from urllib.parse import urlparse, parse_qs
 from reports import ReportGenerator
 from database.queries import ReportQueries
 
-# Get absolute path to database (works from any directory)
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Get absolute path to database (works from any directory and in EXE)
+def get_base_dir():
+    """Get base directory - works for both script and PyInstaller EXE."""
+    if getattr(sys, 'frozen', False):
+        # Running as compiled EXE - use executable directory
+        return os.path.dirname(sys.executable)
+    else:
+        # Running as script - use script directory
+        return os.path.dirname(os.path.abspath(__file__))
+
+SCRIPT_DIR = get_base_dir()
 DB_FILE = os.path.join(SCRIPT_DIR, "TallyConnectDb.db")
 PORT = 8000
 PORTAL_DIR = os.path.join(SCRIPT_DIR, "reports", "portal")
@@ -307,9 +316,9 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
 
 def start_server():
     """Start the portal server."""
-    # Ensure we're in the right directory
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    portal_path = os.path.join(script_dir, "reports", "portal")
+    # Ensure we're in the right directory (works for both script and EXE)
+    base_dir = get_base_dir()
+    portal_path = os.path.join(base_dir, "reports", "portal")
     
     if os.path.exists(portal_path):
         os.chdir(portal_path)
@@ -319,7 +328,9 @@ def start_server():
             os.chdir("reports/portal")
         else:
             print(f"[ERROR] Portal directory not found!")
+            print(f"Base directory: {base_dir}")
             print(f"Looking for: {portal_path}")
+            print(f"Current directory: {os.getcwd()}")
             input("Press Enter to exit...")
             return
     
