@@ -11,10 +11,11 @@
 Desktop → "TallyConnect Portal" → Double-click
 ```
 
-### **Option 2: Before Building EXE**
-```bash
-start_portal_server.bat → Double-click
+### **Option 2: Developer (Local) - One-Click**
 ```
+START_PORTAL.bat → Double-click
+```
+**सर्वात सोपा!** Reports automatically generate होतात on-demand.
 
 ### **Option 3: After Building EXE**
 ```
@@ -70,11 +71,14 @@ python test_reports.py
 python generate_portal.py
 ```
 
-### **Start Portal Server:**
-```bash
-python portal_server.py
-# Or:
-start_portal_server.bat
+### **Start Portal Server (One-Click):**
+```
+START_PORTAL.bat → Double-click
+```
+
+**Or if you need to regenerate reports first:**
+```
+GENERATE_AND_START_PORTAL.bat → Double-click
 ```
 
 ---
