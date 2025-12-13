@@ -12,39 +12,44 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 20px;
+    background: #f0f2f5;
+    padding: 15px;
     color: #2c3e50;
     line-height: 1.6;
+    margin: 0;
 }
 
 .container {
     max-width: 1400px;
     margin: 0 auto;
     background: white;
-    border-radius: 20px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     overflow: hidden;
 }
 
 /* Header Styles */
 .report-header {
-    background: linear-gradient(135deg, #3498db 0%, #2c3e50 100%);
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
     color: white;
-    padding: 40px;
+    padding: 25px 35px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-bottom: 3px solid #3498db;
 }
 
 .logo h1 {
-    font-size: 32px;
-    margin-bottom: 5px;
+    font-size: 26px;
+    margin-bottom: 3px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
 }
 
 .logo p {
-    font-size: 14px;
-    opacity: 0.9;
+    font-size: 12px;
+    opacity: 0.85;
+    margin: 0;
 }
 
 .company-info {
@@ -52,19 +57,22 @@ body {
 }
 
 .company-info h2 {
-    font-size: 28px;
-    margin-bottom: 5px;
+    font-size: 22px;
+    margin-bottom: 4px;
+    font-weight: 600;
 }
 
 .company-info p {
-    font-size: 16px;
-    opacity: 0.8;
+    font-size: 13px;
+    opacity: 0.9;
+    margin: 2px 0;
 }
 
 /* Main Content */
 .report-content {
-    padding: 40px;
+    padding: 25px 35px;
     min-height: 400px;
+    background: #ffffff;
 }
 
 /* Tables */
@@ -73,36 +81,58 @@ table {
     border-collapse: collapse;
     margin: 20px 0;
     background: white;
-    border-radius: 10px;
+    border-radius: 6px;
     overflow: hidden;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border: 1px solid #e0e0e0;
 }
 
 thead {
-    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    background: #34495e;
     color: white;
 }
 
 th {
-    padding: 15px;
+    padding: 12px 15px;
     text-align: left;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 12px;
     text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #2c3e50;
+}
+
+th.text-right {
+    text-align: right;
+}
+
+th.text-center {
+    text-align: center;
 }
 
 tbody tr {
-    border-bottom: 1px solid #ecf0f1;
-    transition: background 0.3s;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.2s;
 }
 
 tbody tr:hover {
     background: #f8f9fa;
 }
 
+tbody tr:last-child {
+    border-bottom: none;
+}
+
 td {
-    padding: 15px;
-    font-size: 14px;
+    padding: 12px 15px;
+    font-size: 13px;
+    color: #2c3e50;
+}
+
+tfoot tr {
+    background: #f8f9fa !important;
+    border-top: 2px solid #e0e0e0;
+    font-weight: 600;
 }
 
 /* Buttons */
@@ -141,15 +171,23 @@ button, .btn {
 .report-footer {
     background: #2c3e50;
     color: white;
-    padding: 30px 40px;
+    padding: 18px 35px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-top: 2px solid #34495e;
 }
 
 .footer-left p {
-    margin: 5px 0;
-    font-size: 14px;
+    margin: 3px 0;
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+.footer-right p {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
 }
 
 /* Utility Classes */

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - TallyConnect</title>
+    <link rel="stylesheet" href="../static/css/main.css">
+    <link rel="stylesheet" href="../static/css/reports.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <header class="report-header">
+            <div class="logo">
+                <h1>📊 TallyConnect</h1>
+                <p>Modern Tally Reporting</p>
+            </div>
+            <div class="company-info">
+                <h2>Vrushali Infotech Pvt Ltd. 25-26</h2>
+                <p>Dashboard - Business Overview</p>
+                <p style="font-size: 14px; opacity: 0.8;">01-04-2025 to 11-05-2025</p>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="report-content">
+            <!-- Key Metrics -->
+            <h3 style="margin-top: 20px; color: #2c3e50;">📊 Key Metrics</h3>
+            <div class="dashboard-grid">
+                <div class="metric-card primary">
+                    <div class="icon">🏢</div>
+                    <div class="label">Total Parties</div>
+                    <div class="value">64</div>
+                </div>
+                <div class="metric-card success">
+                    <div class="icon">💰</div>
+                    <div class="label">Total Debit</div>
+                    <div class="value">₹ 2,672,893.18</div>
+                </div>
+                <div class="metric-card danger">
+                    <div class="icon">💸</div>
+                    <div class="label">Total Credit</div>
+                    <div class="value">₹ 2,671,319.18</div>
+                </div>
+                <div class="metric-card warning">
+                    <div class="icon">📈</div>
+                    <div class="label">Net Balance</div>
+                    <div class="value">₹ 1,574.00</div>
+                </div>
+                <div class="metric-card primary">
+                    <div class="icon">📝</div>
+                    <div class="label">Total Transactions</div>
+                    <div class="value">644</div>
+                </div>
+                <div class="metric-card success">
+                    <div class="icon">📅</div>
+                    <div class="label">Transaction Period</div>
+                    <div class="value" style="font-size: 16px;">01-04-2025 to 11-05-2025</div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 40px;">
+                <!-- Top Debtors Chart -->
+                <div class="chart-container">
+                    <h3>🔝 Top 10 Debtors (Receivables)</h3>
+                    <canvas id="debtorsChart"></canvas>
+                </div>
+
+                <!-- Top Creditors Chart -->
+                <div class="chart-container">
+                    <h3>🔝 Top 10 Creditors (Payables)</h3>
+                    <canvas id="creditorsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Voucher Type Analysis -->
+            <div class="chart-container" style="margin-top: 30px;">
+                <h3>📊 Voucher Type Analysis</h3>
+                <canvas id="voucherTypeChart" style="max-height: 300px;"></canvas>
+            </div>
+
+            <!-- Monthly Trend -->
+            <div class="chart-container" style="margin-top: 30px;">
+                <h3>📈 Monthly Transaction Trend</h3>
+                <canvas id="monthlyTrendChart" style="max-height: 350px;"></canvas>
+            </div>
+
+            <!-- Top Debtors Table -->
+            <h3 style="margin-top: 40px; color: #2c3e50;">📋 Top 10 Debtors</h3>
+            <table id="debtorsTable">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Party Name</th>
+                        <th class="text-right">Outstanding Amount</th>
+                        <th class="text-center">Transactions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr>
+                        <td class="text-center">1</td>
+                        <td>Rama Erande & Associates</td>
+                        <td class="text-right amount-positive"><strong>₹ 5,310.00</strong></td>
+                        <td class="text-center">8</td>
+                    </tr>
+                
+
+                    <tr>
+                        <td class="text-center">2</td>
+                        <td>MAYUR INDUSTRIES PRIVATE LIMITED</td>
+                        <td class="text-right amount-positive"><strong>₹ 248.00</strong></td>
+                        <td class="text-center">2</td>
+                    </tr>
+                
+                </tbody>
+            </table>
+
+            <!-- Top Creditors Table -->
+            <h3 style="margin-top: 40px; color: #2c3e50;">📋 Top 10 Creditors</h3>
+            <table id="creditorsTable">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Party Name</th>
+                        <th class="text-right">Outstanding Amount</th>
+                        <th class="text-center">Transactions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr>
+                        <td class="text-center">1</td>
+                        <td>Ayugen Pharma Pvt. Ltd.</td>
+                        <td class="text-right amount-negative"><strong>₹ 3,984.00</strong></td>
+                        <td class="text-center">10</td>
+                    </tr>
+                
+                </tbody>
+            </table>
+        </main>
+
+        <!-- Footer Section -->
+        <footer class="report-footer">
+            <div class="footer-left">
+                <p>Generated on: 13-12-2025 13:14:01</p>
+                <p>TallyConnect v5.6 | © 2025 Katara Dental</p>
+            </div>
+            <div class="footer-right">
+                <button onclick="window.print()" class="btn-print">🖨️ Print</button>
+            </div>
+        </footer>
+    </div>
+
+    <script src="../static/js/filters.js"></script>
+    <script src="../static/js/export.js"></script>
+    <script>
+        // Chart.js Configuration
+        Chart.defaults.font.family = "'Segoe UI', sans-serif";
+        Chart.defaults.color = '#2c3e50';
+
+        // Top Debtors Chart
+        const debtorsCtx = document.getElementById('debtorsChart').getContext('2d');
+        const debtorsData = {"labels": ["Rama Erande & Associ", "MAYUR INDUSTRIES PRI"], "values": [5310.0, 248.0]};
+        new Chart(debtorsCtx, {
+            type: 'bar',
+            data: {
+                labels: debtorsData.labels,
+                datasets: [{
+                    label: 'Outstanding Amount (₹)',
+                    data: debtorsData.values,
+                    backgroundColor: 'rgba(52, 152, 219, 0.7)',
+                    borderColor: 'rgba(52, 152, 219, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '₹ ' + value.toLocaleString('en-IN');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Top Creditors Chart
+        const creditorsCtx = document.getElementById('creditorsChart').getContext('2d');
+        const creditorsData = {"labels": ["Ayugen Pharma Pvt. L"], "values": [3984.0]};
+        new Chart(creditorsCtx, {
+            type: 'bar',
+            data: {
+                labels: creditorsData.labels,
+                datasets: [{
+                    label: 'Outstanding Amount (₹)',
+                    data: creditorsData.values,
+                    backgroundColor: 'rgba(231, 76, 60, 0.7)',
+                    borderColor: 'rgba(231, 76, 60, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '₹ ' + value.toLocaleString('en-IN');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Voucher Type Chart
+        const voucherTypeCtx = document.getElementById('voucherTypeChart').getContext('2d');
+        const voucherTypeData = {"labels": ["Payment", "Sales", "Receipt", "Contra", "Proforma Invoice", "Journal"], "values": [232, 200, 138, 52, 20, 2]};
+        new Chart(voucherTypeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: voucherTypeData.labels,
+                datasets: [{
+                    data: voucherTypeData.values,
+                    backgroundColor: [
+                        'rgba(52, 152, 219, 0.7)',
+                        'rgba(46, 204, 113, 0.7)',
+                        'rgba(155, 89, 182, 0.7)',
+                        'rgba(241, 196, 15, 0.7)',
+                        'rgba(231, 76, 60, 0.7)',
+                        'rgba(26, 188, 156, 0.7)',
+                        'rgba(230, 126, 34, 0.7)',
+                        'rgba(149, 165, 166, 0.7)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            }
+        });
+
+        // Monthly Trend Chart
+        const monthlyTrendCtx = document.getElementById('monthlyTrendChart').getContext('2d');
+        const monthlyTrendData = {"labels": ["2025-04", "2025-05"], "debit": [2374790.85, 298102.33], "credit": [2373216.85, 298102.33]};
+        new Chart(monthlyTrendCtx, {
+            type: 'line',
+            data: {
+                labels: monthlyTrendData.labels,
+                datasets: [
+                    {
+                        label: 'Debit',
+                        data: monthlyTrendData.debit,
+                        borderColor: 'rgba(46, 204, 113, 1)',
+                        backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Credit',
+                        data: monthlyTrendData.credit,
+                        borderColor: 'rgba(231, 76, 60, 1)',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '₹ ' + value.toLocaleString('en-IN');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+

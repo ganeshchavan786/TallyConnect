@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ledger Report - TallyConnect</title>
+    <link rel="stylesheet" href="../static/css/main.css">
+    <link rel="stylesheet" href="../static/css/reports.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <header class="report-header">
+            <div class="logo">
+                <h1>📊 TallyConnect</h1>
+                <p>Modern Tally Reporting</p>
+            </div>
+            <div class="company-info">
+                <h2>Vrushali Infotech Pvt Ltd. 25-26</h2>
+                <p>Ledger Report</p>
+                <p style="font-size: 14px; opacity: 0.8;">01-04-2024 to 31-12-2025</p>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="report-content">
+            <!-- Ledger Header -->
+            <div class="ledger-header">
+                <h3 style="margin-bottom: 20px; color: #2c3e50;">📗 Ayugen Pharma Pvt. Ltd.</h3>
+                <div class="ledger-summary">
+                    <div class="balance-box opening">
+                        <div class="label">Opening Balance</div>
+                        <div class="value">₹ 0.00</div>
+                    </div>
+                    <div class="balance-box">
+                        <div class="label">Total Debit</div>
+                        <div class="value amount-positive">₹ 97,968.00</div>
+                    </div>
+                    <div class="balance-box">
+                        <div class="label">Total Credit</div>
+                        <div class="value amount-negative">₹ 101,952.00</div>
+                    </div>
+                    <div class="balance-box closing">
+                        <div class="label">Closing Balance</div>
+                        <div class="value">₹ 3,984.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Report Actions -->
+            <div class="report-actions">
+                <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search transactions..." 
+                       data-table="ledgerTable" style="flex: 1; max-width: 300px;">
+                <button onclick="exportToCSV('ledgerTable', 'ledger_report.csv')" class="btn-csv">
+                    📊 Export CSV
+                </button>
+                <button onclick="window.print()" class="btn-print">
+                    🖨️ Print
+                </button>
+            </div>
+
+            <!-- Transaction Details Table -->
+            <h3 style="margin-top: 30px; color: #2c3e50;">📋 Transaction Details</h3>
+            <table id="ledgerTable">
+                <thead>
+                    <tr>
+                        <th data-sortable="true">Date</th>
+                        <th data-sortable="true">Voucher Type</th>
+                        <th data-sortable="true">Voucher No</th>
+                        <th>Particulars</th>
+                        <th data-sortable="true" class="text-right">Debit</th>
+                        <th data-sortable="true" class="text-right">Credit</th>
+                        <th data-sortable="true" class="text-right">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="background: #e8f4f8; font-weight: bold;">
+                        <td colspan="4">Opening Balance</td>
+                        <td class="text-right">-</td>
+                        <td class="text-right">-</td>
+                        <td class="text-right">₹ 0.00</td>
+                    </tr>
+                    
+                    <tr>
+                        <td>01-04-2025</td>
+                        <td>Proforma Invoice</td>
+                        <td>PI/001/25-26</td>
+                        <td>s</td>
+                        <td class="text-right">₹ 30,000.00</td>
+                        <td class="text-right">-</td>
+                        <td class="text-right amount-positive"><strong>₹ 30,000.00</strong></td>
+                    </tr>
+                
+
+                    <tr>
+                        <td>01-04-2025</td>
+                        <td>Proforma Invoice</td>
+                        <td>PI/001/25-26</td>
+                        <td>s</td>
+                        <td class="text-right">-</td>
+                        <td class="text-right">₹ 2,592.00</td>
+                        <td class="text-right amount-positive"><strong>₹ 27,408.00</strong></td>
+                    </tr>
+                
+
+                    <tr>
+                        <td>01-04-2025</td>
+                        <td>Proforma Invoice</td>
+                        <td>PI/001/25-26</td>
+                        <td>s</td>
+                        <td class="text-right">-</td>
+                        <td class="text-right">₹ 2,592.00</td>
+                        <td class="text-right amount-positive"><strong>₹ 24,816.00</strong></td>
+                    </tr>
+                
+
+                    <tr>
+                        <td>01-04-2025</td>
+                        <td>Proforma Invoice</td>
+                        <td>PI/001/25-26</td>
+                        <td>s</td>
+                        <td class="text-right">-</td>
+                        <td class="text-right">₹ 28,800.00</td>
+                        <td class="text-right amount-negative"><strong>₹ 3,984.00</strong></td>
+                    </tr>
+                
+
+                    <tr>
+                        <td>11-04-2025</td>
+                        <td>Receipt</td>
+                        <td>23</td>
+                        <td>Type Transfer Credit         Narration N/ICIN41015</td>
+                        <td class="text-right">-</td>
+                        <td class="text-right">₹ 33,984.00</td>
+                        <td class="text-right amount-negative"><strong>₹ 37,968.00</strong></td>
+                    </tr>
+                
+
+                    <tr>
+                        <td>11-04-2025</td>
+                        <td>Receipt</td>
+                        <td>23</td>
+                        <td>Type Transfer Credit         Narration N/ICIN41015</td>
+                        <td class="text-right">₹ 33,984.00</td>
+                        <td class="text-right">-</td>
+                        <td class="text-right amount-negative"><strong>₹ 3,984.00</strong></td>
+                    </tr>
+                
+
+                    <tr>
+                        <td>11-04-2025</td>
+                        <td>Sales</td>
+                        <td>VIPL/25-26/010</td>
+                        <td>None</td>
+                        <td class="text-right">₹ 33,984.00</td>
+                        <td class="text-right">-</td>
+                        <td class="text-right amount-positive"><strong>₹ 30,000.00</strong></td>
+                    </tr>
+                
+
+                    <tr>
+                        <td>11-04-2025</td>
+                        <td>Sales</td>
+                        <td>VIPL/25-26/010</td>
+                        <td>None</td>
+                        <td class="text-right">-</td>
+                        <td class="text-right">₹ 2,592.00</td>
+                        <td class="text-right amount-positive"><strong>₹ 27,408.00</strong></td>
+                    </tr>
+                
+
+                    <tr>
+                        <td>11-04-2025</td>
+                        <td>Sales</td>
+                        <td>VIPL/25-26/010</td>
+                        <td>None</td>
+                        <td class="text-right">-</td>
+                        <td class="text-right">₹ 2,592.00</td>
+                        <td class="text-right amount-positive"><strong>₹ 24,816.00</strong></td>
+                    </tr>
+                
+
+                    <tr>
+                        <td>11-04-2025</td>
+                        <td>Sales</td>
+                        <td>VIPL/25-26/010</td>
+                        <td>None</td>
+                        <td class="text-right">-</td>
+                        <td class="text-right">₹ 28,800.00</td>
+                        <td class="text-right amount-negative"><strong>₹ 3,984.00</strong></td>
+                    </tr>
+                
+                    <tr style="background: #e8f4f8; font-weight: bold;">
+                        <td colspan="4">Closing Balance</td>
+                        <td class="text-right">-</td>
+                        <td class="text-right">-</td>
+                        <td class="text-right">₹ 3,984.00</td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr style="background: #ecf0f1; font-weight: bold;">
+                        <td colspan="4">Total</td>
+                        <td class="text-right">₹ 97,968.00</td>
+                        <td class="text-right">₹ 101,952.00</td>
+                        <td class="text-right">₹ 3,984.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </main>
+
+        <!-- Footer Section -->
+        <footer class="report-footer">
+            <div class="footer-left">
+                <p>Generated on: 13-12-2025 13:22:08</p>
+                <p>TallyConnect v5.6 | © 2025 Katara Dental</p>
+            </div>
+            <div class="footer-right">
+                <p>Total Transactions: 10</p>
+            </div>
+        </footer>
+    </div>
+
+    <script src="../static/js/filters.js"></script>
+    <script src="../static/js/export.js"></script>
+</body>
+</html>
+

@@ -16,9 +16,9 @@
                 <p>Modern Tally Reporting</p>
             </div>
             <div class="company-info">
-                <h2>{% COMPANY_NAME %}</h2>
+                <h2>Vrushali Infotech Pvt Ltd. 25-26</h2>
                 <p>Outstanding Report</p>
-                <p style="font-size: 14px; opacity: 0.8;">As on: {% AS_ON_DATE %}</p>
+                <p style="font-size: 14px; opacity: 0.8;">As on: 13-12-2025</p>
             </div>
         </header>
 
@@ -37,28 +37,28 @@
             </div>
 
             <!-- Age Analysis Summary -->
-            <h3 style="margin-top: 30px; margin-bottom: 15px; color: #2c3e50; font-size: 16px; font-weight: 600; border-bottom: 2px solid #ecf0f1; padding-bottom: 8px;">📈 Age Analysis</h3>
+            <h3 style="margin-top: 30px; color: #2c3e50;">📈 Age Analysis</h3>
             <div class="age-analysis">
                 <div class="age-bucket safe">
                     <div class="label">0-30 Days</div>
-                    <div class="amount">{% AGE_0_30 %}</div>
+                    <div class="amount">₹ 0.00</div>
                 </div>
                 <div class="age-bucket safe">
                     <div class="label">30-60 Days</div>
-                    <div class="amount">{% AGE_30_60 %}</div>
+                    <div class="amount">₹ 0.00</div>
                 </div>
                 <div class="age-bucket warning">
                     <div class="label">60-90 Days</div>
-                    <div class="amount">{% AGE_60_90 %}</div>
+                    <div class="amount">₹ 0.00</div>
                 </div>
                 <div class="age-bucket overdue">
                     <div class="label">&gt;90 Days</div>
-                    <div class="amount">{% AGE_90_PLUS %}</div>
+                    <div class="amount">₹ 5,558.00</div>
                 </div>
             </div>
 
             <!-- Outstanding Summary Table -->
-            <h3 style="margin-top: 35px; margin-bottom: 15px; color: #2c3e50; font-size: 16px; font-weight: 600; border-bottom: 2px solid #ecf0f1; padding-bottom: 8px;">📋 Party-wise Outstanding</h3>
+            <h3 style="margin-top: 40px; color: #2c3e50;">📋 Party-wise Outstanding</h3>
             <table id="outstandingTable">
                 <thead>
                     <tr>
@@ -71,16 +71,45 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% PARTY_ROWS %}
+                    
+                    <tr>
+                        <td>Rama Erande & Associates</td>
+                        <td class="text-right">₹ 23,364.00</td>
+                        <td class="text-right">₹ 18,054.00</td>
+                        <td class="text-right amount-positive"><strong>₹ 5,310.00</strong></td>
+                        <td class="text-center">243</td>
+                        <td class="text-center">8</td>
+                    </tr>
+                
+
+                    <tr>
+                        <td>Ayugen Pharma Pvt. Ltd.</td>
+                        <td class="text-right">₹ 97,968.00</td>
+                        <td class="text-right">₹ 101,952.00</td>
+                        <td class="text-right amount-negative"><strong>₹ 3,984.00</strong></td>
+                        <td class="text-center">246</td>
+                        <td class="text-center">10</td>
+                    </tr>
+                
+
+                    <tr>
+                        <td>MAYUR INDUSTRIES PRIVATE LIMITED</td>
+                        <td class="text-right">₹ 4,248.00</td>
+                        <td class="text-right">₹ 4,000.00</td>
+                        <td class="text-right amount-positive"><strong>₹ 248.00</strong></td>
+                        <td class="text-center">256</td>
+                        <td class="text-center">2</td>
+                    </tr>
+                
                 </tbody>
                 <tfoot>
                     <tr style="background: #ecf0f1; font-weight: bold;">
                         <td>Total</td>
-                        <td class="text-right">{% TOTAL_DEBIT %}</td>
-                        <td class="text-right">{% TOTAL_CREDIT %}</td>
-                        <td class="text-right">{% TOTAL_BALANCE %}</td>
+                        <td class="text-right">₹ 125,580.00</td>
+                        <td class="text-right">₹ 124,006.00</td>
+                        <td class="text-right">₹ 1,574.00</td>
                         <td class="text-center">-</td>
-                        <td class="text-center">{% TOTAL_COUNT %}</td>
+                        <td class="text-center">3</td>
                     </tr>
                 </tfoot>
             </table>
@@ -89,11 +118,11 @@
         <!-- Footer Section -->
         <footer class="report-footer">
             <div class="footer-left">
-                <p>Generated on: {% GENERATED_DATE %}</p>
+                <p>Generated on: 13-12-2025 13:14:00</p>
                 <p>TallyConnect v5.6 | © 2025 Katara Dental</p>
             </div>
             <div class="footer-right">
-                <p>Total Parties: {% TOTAL_PARTIES %}</p>
+                <p>Total Parties: 3</p>
             </div>
         </footer>
     </div>
