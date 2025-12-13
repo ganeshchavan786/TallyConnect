@@ -26,23 +26,30 @@ def main():
     if getattr(sys, 'frozen', False):
         # Running as compiled EXE
         script_dir = os.path.dirname(sys.executable)
+        # PyInstaller bundles files in _MEIPASS
+        if hasattr(sys, '_MEIPASS'):
+            sys.path.insert(0, sys._MEIPASS)
     else:
         # Running as script
         script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Change to script directory
+    # Change to script directory (where EXE is or script is)
     os.chdir(script_dir)
     
     # Try to import and run portal_server
     try:
-        # Add current directory to path
+        # Add script directory to path
         sys.path.insert(0, script_dir)
+        
+        # Try importing portal_server
         import portal_server
         portal_server.start_server()
     except ImportError as e:
         print(f"Error importing portal_server: {e}")
         print(f"Current directory: {os.getcwd()}")
         print(f"Script directory: {script_dir}")
+        if hasattr(sys, '_MEIPASS'):
+            print(f"MEIPASS: {sys._MEIPASS}")
         input("Press Enter to exit...")
     except Exception as e:
         print(f"Error starting portal: {e}")
