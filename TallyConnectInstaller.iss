@@ -28,13 +28,16 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 Source: "dist\TallyConnect.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\TallyConnectPortal.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; Database will be created automatically by the application on first run
 ; Source: "TallyConnectDb.db"; DestDir: "{app}"; Flags: ignoreversion onlyifdoesntexist
 
 [Icons]
 Name: "{group}\TallyConnect"; Filename: "{app}\TallyConnect.exe"
+Name: "{group}\TallyConnect Portal"; Filename: "{app}\TallyConnectPortal.exe"
 Name: "{group}\Uninstall TallyConnect"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\TallyConnect"; Filename: "{app}\TallyConnect.exe"; Tasks: desktopicon
+Name: "{autodesktop}\TallyConnect Portal"; Filename: "{app}\TallyConnectPortal.exe"; Tasks: desktopicon
 Name: "{userstartup}\TallyConnect"; Filename: "{app}\TallyConnect.exe"; Tasks: startupicon
 
 [Tasks]

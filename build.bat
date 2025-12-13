@@ -35,7 +35,7 @@ if exist "build" rmdir /s /q "build"
 if exist "dist\TallyConnect.exe" del /q "dist\TallyConnect.exe"
 
 echo.
-echo [3/4] Building TallyConnect.exe...
+echo [3/5] Building TallyConnect.exe...
 python -m PyInstaller --clean --noconfirm TallyConnect.spec
 
 if not exist "dist\TallyConnect.exe" (
@@ -49,7 +49,18 @@ echo [SUCCESS] TallyConnect.exe created successfully!
 echo Location: dist\TallyConnect.exe
 
 echo.
-echo [4/4] Would you like to create installer? (Requires Inno Setup)
+echo [4/5] Building TallyConnectPortal.exe...
+python -m PyInstaller --clean --noconfirm TallyConnectPortal.spec
+
+if not exist "dist\TallyConnectPortal.exe" (
+    echo [WARNING] Portal EXE build failed, but continuing...
+) else (
+    echo [SUCCESS] TallyConnectPortal.exe created successfully!
+    echo Location: dist\TallyConnectPortal.exe
+)
+
+echo.
+echo [5/5] Would you like to create installer? (Requires Inno Setup)
 echo Press Y to create installer, or any other key to skip...
 choice /c YN /n /m "Create installer? (Y/N): "
 
@@ -91,6 +102,7 @@ echo ========================================
 echo.
 echo Files created:
 if exist "dist\TallyConnect.exe" echo   - dist\TallyConnect.exe
+if exist "dist\TallyConnectPortal.exe" echo   - dist\TallyConnectPortal.exe
 if exist "dist\TallyConnectSetup_v5.6.exe" echo   - dist\TallyConnectSetup_v5.6.exe
 echo.
 echo You can now run TallyConnect.exe or distribute the installer

@@ -1,9 +1,9 @@
 # -*- mode: python ; coding: utf-8 -*-
-# TallyConnect - Modern Tally Sync Platform
-# PyInstaller Specification File
+# TallyConnect Portal - PyInstaller Specification File
+# Standalone portal server executable
 
 a = Analysis(
-    ['C2.py'],
+    ['portal_launcher.py'],
     pathex=[],
     binaries=[],
     datas=[
@@ -11,15 +11,15 @@ a = Analysis(
         ('database', 'database'),
     ],
     hiddenimports=[
-        'pyodbc', 'sqlite3', 'threading', 'tkinter',
+        'sqlite3', 'http.server', 'socketserver', 'webbrowser',
         'reports', 'reports.report_generator', 'reports.utils',
         'database', 'database.queries',
-        'http.server', 'socketserver', 'webbrowser',
+        'json', 'urllib.parse',
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['matplotlib', 'numpy', 'pandas', 'scipy'],
+    excludes=['matplotlib', 'numpy', 'pandas', 'scipy', 'tkinter'],
     noarchive=False,
     optimize=2,
 )
@@ -32,14 +32,14 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='TallyConnect',
+    name='TallyConnectPortal',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,
+    console=True,  # Show console for server status
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

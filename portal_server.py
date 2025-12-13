@@ -150,9 +150,11 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
         
         report_type = parts[0]
         
-        # Reconstruct guid (parts 1-5)
-        if len(parts) >= 6:
-            guid = '-'.join(parts[1:6])
+        # Reconstruct guid (parts 1-5) - GUID has 5 parts separated by dashes
+        if len(parts) >= 7:
+            # GUID: parts[1] to parts[5] (5 parts)
+            guid_parts = parts[1:6]
+            guid = '-'.join(guid_parts)
             alterid = parts[6] if len(parts) > 6 else ''
         else:
             self.send_error(400, "Invalid report format")
@@ -172,12 +174,20 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
         company_name = row[0]
         
         try:
-            # Generate report on-demand
+            # Generate report on-demand (suppress browser opening)
             if report_type == 'outstanding':
+                # Temporarily disable browser opening
+                original_open = self.generator._open_in_browser
+                self.generator._open_in_browser = lambda x: None
                 report_path = self.generator.generate_outstanding_report(company_name, guid, alterid)
+                self.generator._open_in_browser = original_open
             
             elif report_type == 'dashboard':
+                # Temporarily disable browser opening
+                original_open = self.generator._open_in_browser
+                self.generator._open_in_browser = lambda x: None
                 report_path = self.generator.generate_dashboard(company_name, guid, alterid)
+                self.generator._open_in_browser = original_open
             
             elif report_type == 'ledger':
                 # Extract ledger name (parts after alterid)
@@ -212,10 +222,14 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                         # Try first match or use the part as-is
                         ledger_name = ledger_part.replace('_', ' ')
                     
+                    # Temporarily disable browser opening
+                    original_open = self.generator._open_in_browser
+                    self.generator._open_in_browser = lambda x: None
                     report_path = self.generator.generate_ledger_report(
                         company_name, guid, alterid, ledger_name,
                         "01-04-2024", "31-12-2025"
                     )
+                    self.generator._open_in_browser = original_open
                 else:
                     self.send_error(400, "Ledger name missing")
                     return
@@ -224,13 +238,19 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                 return
             
             # Read and serve the generated report
-            with open(report_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
-            self.end_headers()
-            self.wfile.write(content.encode('utf-8'))
+            try:
+                with open(report_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.send_header('Cache-Control', 'no-cache')
+                self.end_headers()
+                self.wfile.write(content.encode('utf-8'))
+            except FileNotFoundError:
+                self.send_error(404, f"Report file not found: {report_path}")
+            except Exception as e:
+                self.send_error(500, f"Error reading report: {str(e)}")
         
         except Exception as e:
             self.send_error(500, f"Error generating report: {str(e)}")
@@ -249,7 +269,21 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
 
 def start_server():
     """Start the portal server."""
-    os.chdir(PORTAL_DIR)
+    # Ensure we're in the right directory
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    portal_path = os.path.join(script_dir, "reports", "portal")
+    
+    if os.path.exists(portal_path):
+        os.chdir(portal_path)
+    else:
+        # Try relative to current directory
+        if os.path.exists("reports/portal"):
+            os.chdir("reports/portal")
+        else:
+            print(f"[ERROR] Portal directory not found!")
+            print(f"Looking for: {portal_path}")
+            input("Press Enter to exit...")
+            return
     
     try:
         with socketserver.TCPServer(("", PORT), PortalHandler) as httpd:
@@ -278,6 +312,7 @@ def start_server():
             print("Or modify PORT in portal_server.py")
         else:
             print(f"\n[ERROR] {e}")
+        input("Press Enter to exit...")
 
 if __name__ == "__main__":
     start_server()
