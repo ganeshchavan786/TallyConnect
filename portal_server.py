@@ -121,7 +121,8 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
         filename = path.replace('/api/ledgers/', '').replace('.json', '')
         
         # Try to find company by matching guid and alterid
-        conn = sqlite3.connect(DB_FILE)
+        db_path = os.path.join(SCRIPT_DIR, "TallyConnectDb.db")
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
         # Get all companies and match
@@ -192,7 +193,8 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             return
         
         # Get company name
-        conn = sqlite3.connect(DB_FILE)
+        db_path = os.path.join(SCRIPT_DIR, "TallyConnectDb.db")
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM companies WHERE guid=? AND alterid=?", (guid, alterid))
         row = cursor.fetchone()
