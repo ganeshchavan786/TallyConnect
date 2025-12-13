@@ -305,20 +305,22 @@ class BizAnalystApp:
         left_body.grid_rowconfigure(0, weight=1)
         left_body.grid_columnconfigure(0, weight=1)
 
-        cols = ("Name", "Status", "Sync", "Remove", "Next Sync", "AlterID", "Records")
+        cols = ("Name", "Reports", "Status", "Sync", "Remove", "Next Sync", "AlterID", "Records")
         self.tree = ttk.Treeview(left_body, columns=cols, show="headings", height=18, style="Custom.Treeview")
         for c in cols:
             self.tree.heading(c, text=c)
             if c == "Name":
-                self.tree.column(c, width=190, minwidth=160, stretch=True, anchor="w")
+                self.tree.column(c, width=180, minwidth=150, stretch=True, anchor="w")
+            elif c == "Reports":
+                self.tree.column(c, width=110, minwidth=100, stretch=False, anchor="center")
             elif c == "Next Sync":
-                self.tree.column(c, width=110, minwidth=90, stretch=False, anchor="center")
+                self.tree.column(c, width=100, minwidth=90, stretch=False, anchor="center")
             elif c in ("Sync", "Remove"):
-                self.tree.column(c, width=120 if c == "Sync" else 130, minwidth=100, stretch=False, anchor="center")
+                self.tree.column(c, width=100 if c == "Sync" else 100, minwidth=90, stretch=False, anchor="center")
             elif c == "AlterID":
-                self.tree.column(c, width=90, minwidth=70, stretch=False, anchor="center")
+                self.tree.column(c, width=85, minwidth=70, stretch=False, anchor="center")
             else:  # Status, Records
-                self.tree.column(c, width=90, minwidth=70, stretch=False, anchor="center")
+                self.tree.column(c, width=80, minwidth=70, stretch=False, anchor="center")
         self.tree.grid(row=0, column=0, sticky="nsew", pady=(0, 6))
 
         # Inline actions are available via Sync / Remove columns; no separate action bar needed
@@ -857,7 +859,7 @@ class BizAnalystApp:
             return
         try:
             vals = self.tree.item(sel[0], "values")
-            name, alterid = vals[0], vals[5]
+            name, alterid = vals[0], vals[6]  # Updated: AlterID is now at index 6
             with self.db_lock:
                 cur = self.db_conn.cursor()
                 cur.execute("SELECT guid FROM companies WHERE name=? AND alterid=?", (name, alterid))
@@ -868,7 +870,7 @@ class BizAnalystApp:
             pass
 
     def _on_tree_click(self, event):
-        """Handle clicks on Sync/Remove columns inside the tree."""
+        """Handle clicks on Reports/Sync/Remove columns inside the tree."""
         try:
             region = self.tree.identify("region", event.x, event.y)
             if region != "cell":
@@ -878,11 +880,15 @@ class BizAnalystApp:
             if not row_id or not col_id:
                 return
             col_index = int(col_id.replace("#", ""))  # 1-based
-            if col_index == 3:  # Sync column
+            if col_index == 2:  # Reports column
+                self.tree.selection_set(row_id)
+                self.show_report_menu()
+                return "break"
+            if col_index == 4:  # Sync column
                 self.tree.selection_set(row_id)
                 self.manual_sync_all()
                 return "break"
-            if col_index == 4:  # Remove column
+            if col_index == 5:  # Remove column
                 self.tree.selection_set(row_id)
                 self.remove_company()
                 return "break"
@@ -907,6 +913,160 @@ class BizAnalystApp:
             self.load_notes(guid)
         except Exception:
             pass
+
+    def show_report_menu(self):
+        """Show report selection menu."""
+        try:
+            sel = self.tree.selection()
+            if not sel:
+                messagebox.showwarning("No Selection", "Please select a company first")
+                return
+            
+            vals = self.tree.item(sel[0], "values")
+            company_name = vals[0]
+            alterid = vals[6]
+            
+            # Get GUID from database
+            with self.db_lock:
+                cur = self.db_conn.cursor()
+                cur.execute("SELECT guid FROM companies WHERE name=? AND alterid=?", (company_name, alterid))
+                row = cur.fetchone()
+            
+            if not row:
+                messagebox.showerror("Error", "Company not found in database")
+                return
+            
+            guid = row[0]
+            
+            # Create popup menu
+            menu = tk.Menu(self.root, tearoff=0)
+            menu.add_command(label="📊 Outstanding Report", 
+                           command=lambda: self.generate_outstanding_report(company_name, guid, alterid))
+            menu.add_command(label="📗 Ledger Report", 
+                           command=lambda: self.show_ledger_dialog(company_name, guid, alterid))
+            menu.add_command(label="📈 Dashboard", 
+                           command=lambda: self.generate_dashboard(company_name, guid, alterid))
+            
+            # Show menu at mouse position
+            try:
+                menu.tk_popup(self.root.winfo_pointerx(), self.root.winfo_pointery())
+            finally:
+                menu.grab_release()
+                
+        except Exception as e:
+            self.log(f"✗ Report menu error: {e}")
+            messagebox.showerror("Error", f"Failed to show report menu: {e}")
+
+    def generate_outstanding_report(self, company_name, guid, alterid):
+        """Generate outstanding report."""
+        try:
+            self.log(f"🔄 Generating outstanding report for {company_name}...")
+            from reports import ReportGenerator
+            
+            generator = ReportGenerator(DB_FILE)
+            report_path = generator.generate_outstanding_report(company_name, guid, alterid)
+            
+            self.log(f"✓ Outstanding report generated: {os.path.basename(report_path)}")
+            messagebox.showinfo("Success", f"Outstanding report generated successfully!\n\n{os.path.basename(report_path)}")
+            
+        except Exception as e:
+            self.log(f"✗ Outstanding report error: {e}")
+            messagebox.showerror("Error", f"Failed to generate outstanding report:\n{e}")
+
+    def show_ledger_dialog(self, company_name, guid, alterid):
+        """Show dialog to select ledger and date range."""
+        try:
+            # Create dialog window
+            dialog = tk.Toplevel(self.root)
+            dialog.title(f"Ledger Report - {company_name}")
+            dialog.geometry("450x280")
+            dialog.transient(self.root)
+            dialog.grab_set()
+            
+            # Get available parties/ledgers
+            with self.db_lock:
+                cur = self.db_conn.cursor()
+                cur.execute("""
+                    SELECT DISTINCT vch_party_name 
+                    FROM vouchers 
+                    WHERE company_guid=? AND company_alterid=? 
+                    AND vch_party_name IS NOT NULL AND vch_party_name != ''
+                    ORDER BY vch_party_name
+                """, (guid, str(alterid)))
+                parties = [row[0] for row in cur.fetchall()]
+            
+            # Ledger selection
+            tk.Label(dialog, text="Select Party/Ledger:", font=("Segoe UI", 10, "bold")).pack(pady=(15, 5))
+            ledger_var = tk.StringVar()
+            ledger_combo = ttk.Combobox(dialog, textvariable=ledger_var, values=parties, width=40, state="readonly")
+            ledger_combo.pack(pady=5)
+            if parties:
+                ledger_combo.current(0)
+            
+            # Date range
+            tk.Label(dialog, text="Date Range:", font=("Segoe UI", 10, "bold")).pack(pady=(15, 5))
+            date_frame = tk.Frame(dialog)
+            date_frame.pack(pady=5)
+            
+            tk.Label(date_frame, text="From:").pack(side=tk.LEFT, padx=5)
+            from_var = tk.StringVar(value="01-04-2024")
+            tk.Entry(date_frame, textvariable=from_var, width=15).pack(side=tk.LEFT, padx=5)
+            
+            tk.Label(date_frame, text="To:").pack(side=tk.LEFT, padx=5)
+            to_var = tk.StringVar(value=datetime.now().strftime("%d-%m-%Y"))
+            tk.Entry(date_frame, textvariable=to_var, width=15).pack(side=tk.LEFT, padx=5)
+            
+            # Buttons
+            btn_frame = tk.Frame(dialog)
+            btn_frame.pack(pady=20)
+            
+            def generate():
+                ledger = ledger_var.get()
+                if not ledger:
+                    messagebox.showwarning("No Selection", "Please select a party/ledger")
+                    return
+                
+                dialog.destroy()
+                self.generate_ledger_report(company_name, guid, alterid, ledger, from_var.get(), to_var.get())
+            
+            ttk.Button(btn_frame, text="📊 Generate Report", command=generate, style="Success.TButton").pack(side=tk.LEFT, padx=5)
+            ttk.Button(btn_frame, text="❌ Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+            
+        except Exception as e:
+            self.log(f"✗ Ledger dialog error: {e}")
+            messagebox.showerror("Error", f"Failed to show ledger dialog:\n{e}")
+
+    def generate_ledger_report(self, company_name, guid, alterid, ledger_name, from_date, to_date):
+        """Generate ledger report."""
+        try:
+            self.log(f"🔄 Generating ledger report for {ledger_name}...")
+            from reports import ReportGenerator
+            
+            generator = ReportGenerator(DB_FILE)
+            report_path = generator.generate_ledger_report(company_name, guid, alterid, ledger_name, from_date, to_date)
+            
+            self.log(f"✓ Ledger report generated: {os.path.basename(report_path)}")
+            messagebox.showinfo("Success", f"Ledger report generated successfully!\n\n{os.path.basename(report_path)}")
+            
+        except Exception as e:
+            self.log(f"✗ Ledger report error: {e}")
+            messagebox.showerror("Error", f"Failed to generate ledger report:\n{e}")
+
+    def generate_dashboard(self, company_name, guid, alterid):
+        """Generate dashboard report."""
+        try:
+            self.log(f"🔄 Generating dashboard for {company_name}...")
+            from reports import ReportGenerator
+            
+            generator = ReportGenerator(DB_FILE)
+            report_path = generator.generate_dashboard(company_name, guid, alterid)
+            
+            self.log(f"✓ Dashboard generated: {os.path.basename(report_path)}")
+            messagebox.showinfo("Success", f"Dashboard generated successfully!\n\n{os.path.basename(report_path)}")
+            
+        except Exception as e:
+            self.log(f"✗ Dashboard error: {e}")
+            messagebox.showerror("Error", f"Failed to generate dashboard:\n{e}")
 
     def save_notes(self):
         sel = self.tree.selection()
@@ -1428,6 +1588,7 @@ Keyboard Shortcuts:
                 self.tree.tag_configure('odd', background=self.colors.get("tree_odd", "#f8fbfc"))
             except:
                 pass
+            reports_label = "📊 Reports"
             sync_label = "▶ Sync"
             remove_label = "🗑 Remove"
             self.tree.insert(
@@ -1435,6 +1596,7 @@ Keyboard Shortcuts:
                 "end",
                 values=(
                     name,
+                    reports_label,
                     status or '',
                     sync_label,
                     remove_label,

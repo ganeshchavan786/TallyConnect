@@ -27,66 +27,69 @@ class ReportQueries:
     # Outstanding Report - Party-wise summary
     OUTSTANDING_SUMMARY = """
         SELECT 
-            party_name,
-            SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) as debit,
-            SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END) as credit,
-            SUM(amount) as balance,
+            vch_party_name as party_name,
+            SUM(COALESCE(vch_dr_amt, 0)) as debit,
+            SUM(COALESCE(vch_cr_amt, 0)) as credit,
+            (SUM(COALESCE(vch_dr_amt, 0)) - SUM(COALESCE(vch_cr_amt, 0))) as balance,
             COUNT(*) as transaction_count,
-            MIN(date) as first_transaction,
-            MAX(date) as last_transaction
+            MIN(vch_date) as first_transaction,
+            MAX(vch_date) as last_transaction
         FROM vouchers
         WHERE company_guid = ? 
             AND company_alterid = ?
-            AND party_name IS NOT NULL
-            AND party_name != ''
-        GROUP BY party_name
-        HAVING ABS(SUM(amount)) > 0.01
-        ORDER BY ABS(SUM(amount)) DESC
+            AND vch_party_name IS NOT NULL
+            AND vch_party_name != ''
+        GROUP BY vch_party_name
+        HAVING ABS(SUM(COALESCE(vch_dr_amt, 0)) - SUM(COALESCE(vch_cr_amt, 0))) > 0.01
+        ORDER BY ABS(SUM(COALESCE(vch_dr_amt, 0)) - SUM(COALESCE(vch_cr_amt, 0))) DESC
     """
     
     # Outstanding Report - Detailed transactions for a party
     OUTSTANDING_DETAILS = """
         SELECT 
-            date,
-            voucher_type,
-            voucher_number,
-            party_name,
-            amount,
-            narration
+            vch_date as date,
+            vch_type as voucher_type,
+            vch_no as voucher_number,
+            vch_party_name as party_name,
+            vch_dr_amt as debit,
+            vch_cr_amt as credit,
+            vch_narration as narration
         FROM vouchers
         WHERE company_guid = ?
             AND company_alterid = ?
-            AND party_name = ?
-        ORDER BY date, voucher_number
+            AND vch_party_name = ?
+        ORDER BY vch_date, vch_no
     """
     
     # Ledger Report - All transactions for a party/ledger
     LEDGER_TRANSACTIONS = """
         SELECT 
-            date,
-            voucher_type,
-            voucher_number,
-            party_name,
-            amount,
-            narration
+            vch_date as date,
+            vch_type as voucher_type,
+            vch_no as voucher_number,
+            vch_party_name as party_name,
+            led_name as ledger_name,
+            vch_dr_amt as debit,
+            vch_cr_amt as credit,
+            vch_narration as narration
         FROM vouchers
         WHERE company_guid = ?
             AND company_alterid = ?
-            AND party_name = ?
-            AND date BETWEEN ? AND ?
-        ORDER BY date, voucher_number
+            AND (vch_party_name = ? OR led_name = ?)
+            AND vch_date BETWEEN ? AND ?
+        ORDER BY vch_date, vch_no
     """
     
     # Dashboard - Summary statistics
     DASHBOARD_STATS = """
         SELECT 
-            COUNT(DISTINCT party_name) as total_parties,
+            COUNT(DISTINCT vch_party_name) as total_parties,
             COUNT(*) as total_transactions,
-            SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) as total_debit,
-            SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END) as total_credit,
-            SUM(amount) as net_balance,
-            MIN(date) as first_transaction_date,
-            MAX(date) as last_transaction_date
+            SUM(COALESCE(vch_dr_amt, 0)) as total_debit,
+            SUM(COALESCE(vch_cr_amt, 0)) as total_credit,
+            (SUM(COALESCE(vch_dr_amt, 0)) - SUM(COALESCE(vch_cr_amt, 0))) as net_balance,
+            MIN(vch_date) as first_transaction_date,
+            MAX(vch_date) as last_transaction_date
         FROM vouchers
         WHERE company_guid = ?
             AND company_alterid = ?
@@ -95,82 +98,93 @@ class ReportQueries:
     # Dashboard - Top 10 Debtors (Outstanding Receivables)
     TOP_DEBTORS = """
         SELECT 
-            party_name,
-            SUM(amount) as balance,
+            vch_party_name as party_name,
+            (SUM(COALESCE(vch_dr_amt, 0)) - SUM(COALESCE(vch_cr_amt, 0))) as balance,
             COUNT(*) as transaction_count
         FROM vouchers
         WHERE company_guid = ?
             AND company_alterid = ?
-            AND party_name IS NOT NULL
-            AND party_name != ''
-        GROUP BY party_name
-        HAVING SUM(amount) > 0.01
-        ORDER BY SUM(amount) DESC
+            AND vch_party_name IS NOT NULL
+            AND vch_party_name != ''
+        GROUP BY vch_party_name
+        HAVING (SUM(COALESCE(vch_dr_amt, 0)) - SUM(COALESCE(vch_cr_amt, 0))) > 0.01
+        ORDER BY (SUM(COALESCE(vch_dr_amt, 0)) - SUM(COALESCE(vch_cr_amt, 0))) DESC
         LIMIT 10
     """
     
     # Dashboard - Top 10 Creditors (Outstanding Payables)
     TOP_CREDITORS = """
         SELECT 
-            party_name,
-            ABS(SUM(amount)) as balance,
+            vch_party_name as party_name,
+            ABS(SUM(COALESCE(vch_dr_amt, 0)) - SUM(COALESCE(vch_cr_amt, 0))) as balance,
             COUNT(*) as transaction_count
         FROM vouchers
         WHERE company_guid = ?
             AND company_alterid = ?
-            AND party_name IS NOT NULL
-            AND party_name != ''
-        GROUP BY party_name
-        HAVING SUM(amount) < -0.01
-        ORDER BY SUM(amount) ASC
+            AND vch_party_name IS NOT NULL
+            AND vch_party_name != ''
+        GROUP BY vch_party_name
+        HAVING (SUM(COALESCE(vch_dr_amt, 0)) - SUM(COALESCE(vch_cr_amt, 0))) < -0.01
+        ORDER BY (SUM(COALESCE(vch_dr_amt, 0)) - SUM(COALESCE(vch_cr_amt, 0))) ASC
         LIMIT 10
     """
     
     # Dashboard - Voucher type wise summary
     VOUCHER_TYPE_SUMMARY = """
         SELECT 
-            voucher_type,
+            vch_type as voucher_type,
             COUNT(*) as count,
-            SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) as total_debit,
-            SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END) as total_credit
+            SUM(COALESCE(vch_dr_amt, 0)) as total_debit,
+            SUM(COALESCE(vch_cr_amt, 0)) as total_credit
         FROM vouchers
         WHERE company_guid = ?
             AND company_alterid = ?
-        GROUP BY voucher_type
+        GROUP BY vch_type
         ORDER BY count DESC
     """
     
     # Dashboard - Month-wise transaction trend
     MONTHLY_TREND = """
         SELECT 
-            strftime('%Y-%m', date) as month,
+            strftime('%Y-%m', vch_date) as month,
             COUNT(*) as transaction_count,
-            SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) as total_debit,
-            SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END) as total_credit
+            SUM(COALESCE(vch_dr_amt, 0)) as total_debit,
+            SUM(COALESCE(vch_cr_amt, 0)) as total_credit
         FROM vouchers
         WHERE company_guid = ?
             AND company_alterid = ?
-        GROUP BY strftime('%Y-%m', date)
+        GROUP BY strftime('%Y-%m', vch_date)
         ORDER BY month
     """
     
     # Get all unique parties (for dropdowns/filters)
     GET_ALL_PARTIES = """
-        SELECT DISTINCT party_name
+        SELECT DISTINCT vch_party_name as party_name
         FROM vouchers
         WHERE company_guid = ?
             AND company_alterid = ?
-            AND party_name IS NOT NULL
-            AND party_name != ''
-        ORDER BY party_name
+            AND vch_party_name IS NOT NULL
+            AND vch_party_name != ''
+        ORDER BY vch_party_name
     """
     
     # Get all voucher types (for filters)
     GET_VOUCHER_TYPES = """
-        SELECT DISTINCT voucher_type
+        SELECT DISTINCT vch_type as voucher_type
         FROM vouchers
         WHERE company_guid = ?
             AND company_alterid = ?
-        ORDER BY voucher_type
+        ORDER BY vch_type
+    """
+    
+    # Get all ledgers (for filters)
+    GET_ALL_LEDGERS = """
+        SELECT DISTINCT led_name as ledger_name
+        FROM vouchers
+        WHERE company_guid = ?
+            AND company_alterid = ?
+            AND led_name IS NOT NULL
+            AND led_name != ''
+        ORDER BY led_name
     """
 
