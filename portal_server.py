@@ -253,15 +253,20 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                 self.generator._open_in_browser = original_open
             
             elif report_type == 'ledger':
-                # Extract ledger name (parts after alterid)
-                if len(parts) > 7:
-                    # Get ledger name from database by matching
+                # Use original ledger name from query parameter if available
+                if original_ledger_name:
+                    # Use the original name directly (from query parameter)
+                    ledger_name = original_ledger_name
+                elif len(parts) > 7:
+                    # Fallback: Try to extract from URL path
                     ledger_part = '_'.join(parts[7:])
                     
-                    # Query database to find matching ledger
+                    # Query database to find matching ledger by sanitized name
                     db_path = os.path.join(get_base_dir(), "TallyConnectDb.db")
                     conn = sqlite3.connect(db_path)
                     cursor = conn.cursor()
+                    
+                    # Get all ledgers for this company
                     cursor.execute("""
                         SELECT DISTINCT vch_party_name
                         FROM vouchers
@@ -272,7 +277,7 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                     ledgers = [row[0] for row in cursor.fetchall()]
                     conn.close()
                     
-                    # Find best match
+                    # Find best match by comparing sanitized names
                     ledger_name = None
                     for ledger in ledgers:
                         safe_ledger = ledger.replace(' ', '_').replace('/', '_').replace('\\', '_')
@@ -283,20 +288,20 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                             break
                     
                     if not ledger_name:
-                        # Try first match or use the part as-is
+                        # Last resort: use sanitized name as-is
                         ledger_name = ledger_part.replace('_', ' ')
-                    
-                    # Temporarily disable browser opening
-                    original_open = self.generator._open_in_browser
-                    self.generator._open_in_browser = lambda x: None
-                    report_path = self.generator.generate_ledger_report(
-                        company_name, guid, alterid, ledger_name,
-                        "01-04-2024", "31-12-2025"
-                    )
-                    self.generator._open_in_browser = original_open
                 else:
-                    self.send_error(400, "Ledger name missing")
+                    self.send_error(400, "Ledger name not provided")
                     return
+                
+                # Temporarily disable browser opening
+                original_open = self.generator._open_in_browser
+                self.generator._open_in_browser = lambda x: None
+                report_path = self.generator.generate_ledger_report(
+                    company_name, guid, alterid, ledger_name,
+                    "01-04-2024", "31-12-2025"
+                )
+                self.generator._open_in_browser = original_open
             else:
                 self.send_error(400, f"Unknown report type: {report_type}")
                 return
