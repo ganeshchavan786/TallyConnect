@@ -9,6 +9,7 @@ a = Analysis(
     datas=[
         ('reports', 'reports'),
         ('database', 'database'),
+        ('portal_server.py', '.'),
     ],
     hiddenimports=[
         'sqlite3', 'http.server', 'socketserver', 'webbrowser',
