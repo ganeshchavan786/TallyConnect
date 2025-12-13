@@ -41,9 +41,10 @@ def get_resource_dir():
         # Running as script - use script directory
         return os.path.dirname(os.path.abspath(__file__))
 
-SCRIPT_DIR = get_base_dir()  # For database (should be with EXE)
+# Don't use SCRIPT_DIR directly - use get_base_dir() function instead
+# SCRIPT_DIR = get_base_dir()  # For database (should be with EXE)
 RESOURCE_DIR = get_resource_dir()  # For bundled files (reports, etc.)
-DB_FILE = os.path.join(SCRIPT_DIR, "TallyConnectDb.db")
+DB_FILE = os.path.join(get_base_dir(), "TallyConnectDb.db")
 PORT = 8000
 PORTAL_DIR = os.path.join(RESOURCE_DIR, "reports", "portal")
 
@@ -103,7 +104,7 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
         """Send companies list."""
         try:
             # Use absolute path to database
-            db_path = os.path.join(SCRIPT_DIR, "TallyConnectDb.db")
+            db_path = os.path.join(get_base_dir(), "TallyConnectDb.db")
             if not os.path.exists(db_path):
                 print(f"[ERROR] Database not found at: {db_path}")
                 self.send_json_response([])
@@ -253,7 +254,7 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                     ledger_part = '_'.join(parts[7:])
                     
                     # Query database to find matching ledger
-                    db_path = os.path.join(SCRIPT_DIR, "TallyConnectDb.db")
+                    db_path = os.path.join(get_base_dir(), "TallyConnectDb.db")
                     conn = sqlite3.connect(db_path)
                     cursor = conn.cursor()
                     cursor.execute("""
