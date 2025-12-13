@@ -211,9 +211,8 @@ TallyConnect/
 ## 📞 Support
 
 For support and inquiries:
-- **Company:** Katara Dental
-- **Website:** https://kataradental.com
-- **Support:** https://kataradental.com/support
+- **Company:** Vrushali Infotech Pvt Ltd
+- **Location:** Pune, Maharashtra, India
 
 ---
 
@@ -229,7 +228,7 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 
 ## 📄 License
 
-© 2025 Katara Dental. All rights reserved.
+© 2025 Vrushali Infotech Pvt Ltd, Pune, Maharashtra. All rights reserved.
 
 ## 🌟 Star History
 
@@ -251,5 +250,5 @@ Built with:
 
 ---
 
-**Made with ❤️ by Katara Dental**
+**Made with ❤️ by Vrushali Infotech Pvt Ltd**
 

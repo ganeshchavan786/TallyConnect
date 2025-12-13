@@ -5,10 +5,10 @@
 [Setup]
 AppName=TallyConnect
 AppVersion=5.6
-AppPublisher=Katara Dental
-AppPublisherURL=https://kataradental.com
-AppSupportURL=https://kataradental.com/support
-AppUpdatesURL=https://kataradental.com/updates
+AppPublisher=Vrushali Infotech Pvt Ltd
+AppPublisherURL=
+AppSupportURL=
+AppUpdatesURL=
 DefaultDirName={localappdata}\Programs\TallyConnect
 DefaultGroupName=TallyConnect
 UninstallDisplayIcon={app}\TallyConnect.exe
