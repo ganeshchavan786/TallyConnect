@@ -41,11 +41,19 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             # Serve static files
             super().do_GET()
     
+    def do_OPTIONS(self):
+        """Handle OPTIONS requests for CORS."""
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+    
     def handle_api(self, path, parsed):
         """Handle API requests."""
         try:
             # Companies list
-            if path == '/api/companies.json':
+            if path == '/api/companies.json' or path == '/api/companies.json/':
                 self.send_companies()
             
             # Ledgers for company
@@ -57,31 +65,42 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                 self.generate_and_serve_report(path)
             
             else:
-                self.send_error(404, "API endpoint not found")
+                print(f"[DEBUG] API path not found: {path}")
+                self.send_error(404, f"API endpoint not found: {path}")
         
         except Exception as e:
+            print(f"[ERROR] handle_api: {e}")
+            import traceback
+            traceback.print_exc()
             self.send_error(500, f"Server error: {str(e)}")
     
     def send_companies(self):
         """Send companies list."""
-        conn = sqlite3.connect(DB_FILE)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT name, guid, alterid, status, total_records FROM companies WHERE status='synced'")
-        companies = []
-        for row in cursor.fetchall():
-            companies.append({
-                'name': row['name'],
-                'guid': row['guid'],
-                'alterid': str(row['alterid']),
-                'status': row['status'] or 'synced',
-                'total_records': row['total_records'] or 0
-            })
-        
-        conn.close()
-        
-        self.send_json_response(companies)
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT name, guid, alterid, status, total_records FROM companies WHERE status='synced'")
+            companies = []
+            for row in cursor.fetchall():
+                companies.append({
+                    'name': row['name'],
+                    'guid': row['guid'],
+                    'alterid': str(row['alterid']),
+                    'status': row['status'] or 'synced',
+                    'total_records': row['total_records'] or 0
+                })
+            
+            conn.close()
+            
+            # If no companies found, return empty array (not error)
+            self.send_json_response(companies)
+        except Exception as e:
+            print(f"[ERROR] send_companies: {e}")
+            import traceback
+            traceback.print_exc()
+            self.send_error(500, f"Error loading companies: {str(e)}")
     
     def send_ledgers(self, path):
         """Send ledgers list for a company."""
@@ -256,10 +275,13 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             self.send_error(500, f"Error generating report: {str(e)}")
     
     def send_json_response(self, data):
-        """Send JSON response."""
+        """Send JSON response with CORS headers."""
         json_data = json.dumps(data, indent=2)
         self.send_response(200)
         self.send_header('Content-type', 'application/json; charset=utf-8')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
         self.wfile.write(json_data.encode('utf-8'))
     
