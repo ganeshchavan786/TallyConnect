@@ -36,6 +36,7 @@ env/
 # Database (Keep template, ignore actual data)
 tally_local_v5_6_optimized.db
 TalllyData.db
+TallyConnectDb.db
 *.db-journal
 
 # IDE
