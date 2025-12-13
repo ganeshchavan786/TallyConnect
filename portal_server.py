@@ -22,16 +22,30 @@ from database.queries import ReportQueries
 def get_base_dir():
     """Get base directory - works for both script and PyInstaller EXE."""
     if getattr(sys, 'frozen', False):
-        # Running as compiled EXE - use executable directory
+        # Running as compiled EXE - use executable directory (for database)
         return os.path.dirname(sys.executable)
     else:
         # Running as script - use script directory
         return os.path.dirname(os.path.abspath(__file__))
 
-SCRIPT_DIR = get_base_dir()
+def get_resource_dir():
+    """Get resource directory - for bundled files in EXE."""
+    if getattr(sys, 'frozen', False):
+        # Running as compiled EXE - PyInstaller bundles files in _MEIPASS
+        try:
+            return sys._MEIPASS
+        except AttributeError:
+            # Fallback to executable directory
+            return os.path.dirname(sys.executable)
+    else:
+        # Running as script - use script directory
+        return os.path.dirname(os.path.abspath(__file__))
+
+SCRIPT_DIR = get_base_dir()  # For database (should be with EXE)
+RESOURCE_DIR = get_resource_dir()  # For bundled files (reports, etc.)
 DB_FILE = os.path.join(SCRIPT_DIR, "TallyConnectDb.db")
 PORT = 8000
-PORTAL_DIR = os.path.join(SCRIPT_DIR, "reports", "portal")
+PORTAL_DIR = os.path.join(RESOURCE_DIR, "reports", "portal")
 
 class PortalHandler(http.server.SimpleHTTPRequestHandler):
     """Custom handler for portal requests."""
@@ -130,7 +144,7 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
         filename = path.replace('/api/ledgers/', '').replace('.json', '')
         
         # Try to find company by matching guid and alterid
-        db_path = os.path.join(SCRIPT_DIR, "TallyConnectDb.db")
+        db_path = os.path.join(get_base_dir(), "TallyConnectDb.db")
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
@@ -155,7 +169,7 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             self.send_error(404, "Company not found")
             return
         
-        db_path = os.path.join(SCRIPT_DIR, "TallyConnectDb.db")
+        db_path = os.path.join(get_base_dir(), "TallyConnectDb.db")
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -203,7 +217,7 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             return
         
         # Get company name
-        db_path = os.path.join(SCRIPT_DIR, "TallyConnectDb.db")
+        db_path = os.path.join(get_base_dir(), "TallyConnectDb.db")
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM companies WHERE guid=? AND alterid=?", (guid, alterid))
