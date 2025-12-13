@@ -147,6 +147,36 @@ def generate_all_reports():
         except Exception as e:
             print(f"[ERROR] {e}")
 
+def embed_data_in_html():
+    """Embed companies and ledgers data directly in HTML."""
+    # Load companies
+    companies = load_companies()
+    
+    # Load ledgers for each company
+    companies_with_ledgers = []
+    for company in companies:
+        ledgers = load_ledgers(company['guid'], company['alterid'])
+        company['ledgers'] = ledgers
+        companies_with_ledgers.append(company)
+    
+    # Read index.html
+    index_path = os.path.join(PORTAL_DIR, "index.html")
+    with open(index_path, 'r', encoding='utf-8') as f:
+        html = f.read()
+    
+    # Embed companies data in JavaScript
+    companies_js = json.dumps(companies_with_ledgers, indent=2)
+    html = html.replace(
+        '// COMPANIES_DATA_PLACEHOLDER',
+        f'const COMPANIES_DATA = {companies_js};'
+    )
+    
+    # Write back
+    with open(index_path, 'w', encoding='utf-8') as f:
+        f.write(html)
+    
+    print("[OK] Embedded companies and ledgers data in HTML")
+
 def main():
     """Main function."""
     print("="*60)
@@ -163,6 +193,10 @@ def main():
     
     # Generate all reports
     generate_all_reports()
+    
+    # Embed data in HTML (for file:// protocol)
+    print("\nEmbedding data in HTML...")
+    embed_data_in_html()
     
     print("\n" + "="*60)
     print("[SUCCESS] Portal generation complete!")

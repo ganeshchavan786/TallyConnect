@@ -318,13 +318,289 @@
     </div>
     
     <script>
+        const COMPANIES_DATA = [
+  {
+    "name": "Vrushali Infotech Pvt Ltd. 25-26",
+    "guid": "8fdcfdd1-71cc-4873-99c6-95735225388e",
+    "alterid": "102209.0",
+    "status": "synced",
+    "total_records": 647,
+    "ledgers": [
+      {
+        "name": "A P HOLDINGS PVT.LTD",
+        "count": 6
+      },
+      {
+        "name": "APRAR INDIA PRIVATE LIMITED",
+        "count": 10
+      },
+      {
+        "name": "Amazon India",
+        "count": 2
+      },
+      {
+        "name": "Ashtavinayak Venturs",
+        "count": 4
+      },
+      {
+        "name": "Atharva Multitech\n",
+        "count": 8
+      },
+      {
+        "name": "Ayugen Pharma Pvt. Ltd.",
+        "count": 10
+      },
+      {
+        "name": "Centpro Engineerings Pvt Ltd",
+        "count": 10
+      },
+      {
+        "name": "Coaster Design",
+        "count": 6
+      },
+      {
+        "name": "Comfort Systems",
+        "count": 6
+      },
+      {
+        "name": "DEEPAN POWER SOLUTIONS (OPC) PRIVATE LIMITED",
+        "count": 6
+      },
+      {
+        "name": "Design Direction Pvt Ltd",
+        "count": 4
+      },
+      {
+        "name": "Digital Ocen",
+        "count": 2
+      },
+      {
+        "name": "Diya Engineering",
+        "count": 6
+      },
+      {
+        "name": "Drasla Technology",
+        "count": 6
+      },
+      {
+        "name": "Dynamic Corporate Solutions Pvt Ltd",
+        "count": 6
+      },
+      {
+        "name": "GANPATI SILK",
+        "count": 4
+      },
+      {
+        "name": "GLOBAL STEEL CORPORATION\r",
+        "count": 6
+      },
+      {
+        "name": "ITCG Technologies LLP",
+        "count": 2
+      },
+      {
+        "name": "Induslnd Bank Limited",
+        "count": 222
+      },
+      {
+        "name": "Induslnd Bank Limited-186",
+        "count": 26
+      },
+      {
+        "name": "Infinity Corporation",
+        "count": 4
+      },
+      {
+        "name": "Italent Outsourcing Services Pvt Ltd",
+        "count": 6
+      },
+      {
+        "name": "JUST ENTERPRISES",
+        "count": 14
+      },
+      {
+        "name": "Jay Traders",
+        "count": 2
+      },
+      {
+        "name": "KRISHNA PRINTERS",
+        "count": 8
+      },
+      {
+        "name": "KUBER AUTO PRESSING",
+        "count": 6
+      },
+      {
+        "name": "MATOSHRI ENTERPRISES",
+        "count": 6
+      },
+      {
+        "name": "MAYUR INDUSTRIES PRIVATE LIMITED",
+        "count": 2
+      },
+      {
+        "name": "Machining Masters ASW Product",
+        "count": 6
+      },
+      {
+        "name": "Mahavir Alloys",
+        "count": 4
+      },
+      {
+        "name": "Microcut Technology",
+        "count": 4
+      },
+      {
+        "name": "Nath Enterprises",
+        "count": 6
+      },
+      {
+        "name": "Precisemake Industries",
+        "count": 4
+      },
+      {
+        "name": "Priya Industries",
+        "count": 6
+      },
+      {
+        "name": "Probity Soft Pvt Ltd",
+        "count": 4
+      },
+      {
+        "name": "R.D Kute &Co.",
+        "count": 6
+      },
+      {
+        "name": "Raj Process Equipments And Systems Pvt Ltd\r\n",
+        "count": 4
+      },
+      {
+        "name": "Rama Erande & Associates",
+        "count": 8
+      },
+      {
+        "name": "Ravi Kiran Servises Pvt Ltd",
+        "count": 4
+      },
+      {
+        "name": "Roedl & Partner Consulting Pvt. Ltd.",
+        "count": 10
+      },
+      {
+        "name": "Rps Filters pvt ltd",
+        "count": 6
+      },
+      {
+        "name": "S J Engineering",
+        "count": 6
+      },
+      {
+        "name": "S N Trading",
+        "count": 6
+      },
+      {
+        "name": "S3 SPIRE TECH PVT LTD",
+        "count": 6
+      },
+      {
+        "name": "SANJEEVANI CATTLE FEEDS",
+        "count": 16
+      },
+      {
+        "name": "SILICONVEINS PRIVATE LIMITED-Cr",
+        "count": 4
+      },
+      {
+        "name": "SILICONVEINS PVT LTD",
+        "count": 30
+      },
+      {
+        "name": "SRK Enterprises",
+        "count": 4
+      },
+      {
+        "name": "SVA Electricals",
+        "count": 16
+      },
+      {
+        "name": "SYNCAXIS",
+        "count": 9
+      },
+      {
+        "name": "Sai Traders",
+        "count": 6
+      },
+      {
+        "name": "Sanjeev Enterprises",
+        "count": 4
+      },
+      {
+        "name": "Shakti Auto Industries Pvt Ltd",
+        "count": 8
+      },
+      {
+        "name": "Shree Morya Engineers",
+        "count": 6
+      },
+      {
+        "name": "Shree Trading Company",
+        "count": 6
+      },
+      {
+        "name": "Shree Vinayak Rewinding Works",
+        "count": 4
+      },
+      {
+        "name": "TALLY SOLUTIONS PVT LTD (DR)",
+        "count": 2
+      },
+      {
+        "name": "Techguy Technologies Private Limited",
+        "count": 2
+      },
+      {
+        "name": "Tirupati Packing",
+        "count": 4
+      },
+      {
+        "name": "Veera Gold \n",
+        "count": 5
+      },
+      {
+        "name": "Vishal Engineering",
+        "count": 4
+      },
+      {
+        "name": "WAY2INNOVATIONS HEALTHCARE PVT LTD",
+        "count": 12
+      },
+      {
+        "name": "WEBYNE DATA CENTRE PRIVATE LIMITED",
+        "count": 8
+      },
+      {
+        "name": "XTREME TOOLING",
+        "count": 4
+      }
+    ]
+  }
+];
+        
         let selectedCompany = null;
         let selectedLedger = null;
         let navigationHistory = [];
+        let companiesData = [];
         
         // Load companies on page load
         window.onload = function() {
-            loadCompanies();
+            // Try to use embedded data first
+            if (typeof COMPANIES_DATA !== 'undefined') {
+                companiesData = COMPANIES_DATA;
+                displayCompanies(companiesData);
+            } else {
+                // Fallback: try to fetch
+                loadCompanies();
+            }
         };
         
         function showPage(pageId) {
@@ -356,18 +632,31 @@
         }
         
         function loadCompanies() {
-            // This will be populated by Python script
-            // For now, show placeholder
-            fetch('api/companies.json')
-                .then(response => response.json())
-                .then(companies => {
-                    displayCompanies(companies);
-                })
-                .catch(() => {
-                    // Fallback: Show message to run Python script
+            // Try to fetch from API (for HTTP server)
+            if (window.location.protocol === 'file:') {
+                // File protocol - use embedded data
+                if (companiesData.length > 0) {
+                    displayCompanies(companiesData);
+                } else {
                     document.getElementById('companyGrid').innerHTML = 
                         '<div class="loading">Please run: python generate_portal.py</div>';
-                });
+                }
+            } else {
+                // HTTP protocol - try fetch
+                fetch('api/companies.json')
+                    .then(response => response.json())
+                    .then(companies => {
+                        displayCompanies(companies);
+                    })
+                    .catch(() => {
+                        if (companiesData.length > 0) {
+                            displayCompanies(companiesData);
+                        } else {
+                            document.getElementById('companyGrid').innerHTML = 
+                                '<div class="loading">Please run: python generate_portal.py</div>';
+                        }
+                    });
+            }
         }
         
         function displayCompanies(companies) {
@@ -424,15 +713,30 @@
         function loadLedgers() {
             if (!selectedCompany) return;
             
-            fetch(`api/ledgers/${selectedCompany.guid}_${selectedCompany.alterid}.json`)
-                .then(response => response.json())
-                .then(ledgers => {
-                    displayLedgers(ledgers);
-                })
-                .catch(() => {
+            // Try to get ledgers from embedded data
+            if (selectedCompany.ledgers && selectedCompany.ledgers.length > 0) {
+                displayLedgers(selectedCompany.ledgers);
+            } else if (window.location.protocol === 'file:') {
+                // File protocol - try embedded data
+                const company = companiesData.find(c => c.guid === selectedCompany.guid);
+                if (company && company.ledgers) {
+                    displayLedgers(company.ledgers);
+                } else {
                     document.getElementById('ledgerList').innerHTML = 
-                        '<div class="loading">Please run: python generate_portal.py</div>';
-                });
+                        '<div class="loading">No ledgers found. Please regenerate portal.</div>';
+                }
+            } else {
+                // HTTP protocol - try fetch
+                fetch(`api/ledgers/${selectedCompany.guid}_${selectedCompany.alterid}.json`)
+                    .then(response => response.json())
+                    .then(ledgers => {
+                        displayLedgers(ledgers);
+                    })
+                    .catch(() => {
+                        document.getElementById('ledgerList').innerHTML = 
+                            '<div class="loading">Please run: python generate_portal.py</div>';
+                    });
+            }
         }
         
         function displayLedgers(ledgers) {
