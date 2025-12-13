@@ -146,7 +146,8 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             self.send_error(404, "Company not found")
             return
         
-        conn = sqlite3.connect(DB_FILE)
+        db_path = os.path.join(SCRIPT_DIR, "TallyConnectDb.db")
+        conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -229,7 +230,8 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                     ledger_part = '_'.join(parts[7:])
                     
                     # Query database to find matching ledger
-                    conn = sqlite3.connect(DB_FILE)
+                    db_path = os.path.join(SCRIPT_DIR, "TallyConnectDb.db")
+                    conn = sqlite3.connect(db_path)
                     cursor = conn.cursor()
                     cursor.execute("""
                         SELECT DISTINCT vch_party_name
