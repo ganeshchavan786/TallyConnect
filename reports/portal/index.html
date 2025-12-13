@@ -698,7 +698,9 @@
             if (!selectedCompany) return;
             
             // Generate or load outstanding report
-            const reportUrl = `api/reports/outstanding_${selectedCompany.guid}_${selectedCompany.alterid}.html`;
+            const safeGuid = selectedCompany.guid.replace(/-/g, '_').replace(/\./g, '_');
+            const safeAlterid = String(selectedCompany.alterid).replace(/\./g, '_');
+            const reportUrl = `api/reports/outstanding_${safeGuid}_${safeAlterid}.html`;
             showReport(reportUrl, 'reports');
         }
         
@@ -766,22 +768,138 @@
             });
             event.currentTarget.classList.add('selected');
             
-            // Show ledger outstanding report
-            const reportUrl = `api/reports/ledger_${selectedCompany.guid}_${selectedCompany.alterid}_${ledger.name.replace(/[^a-zA-Z0-9]/g, '_')}.html`;
+            // Sanitize ledger name to match file naming
+            let safeLedger = ledger.name.trim();
+            safeLedger = safeLedger.replace(/\s+/g, '_');  // Spaces to underscore
+            safeLedger = safeLedger.replace(/\//g, '_');   // Slash to underscore
+            safeLedger = safeLedger.replace(/\\/g, '_');   // Backslash to underscore
+            safeLedger = safeLedger.replace(/\r/g, '');    // Remove carriage return
+            safeLedger = safeLedger.replace(/\n/g, '');    // Remove newline
+            safeLedger = safeLedger.replace(/[^a-zA-Z0-9_\-]/g, '_');  // Only alphanumeric, underscore, hyphen
+            safeLedger = safeLedger.replace(/_+/g, '_');   // Multiple underscores to single
+            safeLedger = safeLedger.replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+            
+            // Sanitize guid and alterid
+            const safeGuid = selectedCompany.guid.replace(/-/g, '_').replace(/\./g, '_');
+            const safeAlterid = String(selectedCompany.alterid).replace(/\./g, '_');
+            
+            // Show ledger report
+            const reportUrl = `api/reports/ledger_${safeGuid}_${safeAlterid}_${safeLedger}.html`;
             showReport(reportUrl, 'ledgers');
         }
         
         function showDashboard() {
             if (!selectedCompany) return;
             
-            const reportUrl = `api/reports/dashboard_${selectedCompany.guid}_${selectedCompany.alterid}.html`;
+            const safeGuid = selectedCompany.guid.replace(/-/g, '_').replace(/\./g, '_');
+            const safeAlterid = String(selectedCompany.alterid).replace(/\./g, '_');
+            const reportUrl = `api/reports/dashboard_${safeGuid}_${safeAlterid}.html`;
             showReport(reportUrl, 'reports');
         }
         
         function showReport(url, fromPage) {
             navigationHistory.push(fromPage);
             showPage('viewer');
-            document.getElementById('reportFrame').src = url;
+            
+            const frame = document.getElementById('reportFrame');
+            
+            // Set loading message
+            frame.srcdoc = `
+                <html>
+                    <head><style>
+                        body { 
+                            font-family: 'Segoe UI', Arial; 
+                            text-align: center; 
+                            padding: 100px 50px; 
+                            background: #f0f2f5;
+                        }
+                        .loading { 
+                            color: #3498db; 
+                            font-size: 18px; 
+                            margin: 20px 0; 
+                        }
+                        .spinner {
+                            border: 4px solid #f3f3f3;
+                            border-top: 4px solid #3498db;
+                            border-radius: 50%;
+                            width: 40px;
+                            height: 40px;
+                            animation: spin 1s linear infinite;
+                            margin: 20px auto;
+                        }
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    </style></head>
+                    <body>
+                        <div class="spinner"></div>
+                        <div class="loading">Loading report...</div>
+                    </body>
+                </html>
+            `;
+            
+            // Handle load error
+            frame.onerror = function() {
+                frame.srcdoc = `
+                    <html>
+                        <head><style>
+                            body { 
+                                font-family: 'Segoe UI', Arial; 
+                                text-align: center; 
+                                padding: 50px; 
+                                background: #f0f2f5;
+                            }
+                            .error { 
+                                color: #e74c3c; 
+                                font-size: 20px; 
+                                font-weight: 600;
+                                margin: 20px 0; 
+                            }
+                            .info { 
+                                color: #7f8c8d; 
+                                font-size: 14px; 
+                                margin: 10px 0;
+                            }
+                            .file-path {
+                                background: #ecf0f1;
+                                padding: 10px;
+                                border-radius: 4px;
+                                font-family: monospace;
+                                font-size: 12px;
+                                margin: 20px auto;
+                                max-width: 600px;
+                                word-break: break-all;
+                            }
+                        </style></head>
+                        <body>
+                            <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                            <div class="error">Report file not found</div>
+                            <div class="info">File: ${url}</div>
+                            <div class="file-path">${url}</div>
+                            <div class="info" style="margin-top: 30px;">
+                                <strong>Solution:</strong><br>
+                                Please run: <code style="background: #ecf0f1; padding: 2px 6px; border-radius: 3px;">python generate_portal.py</code><br>
+                                This will generate all ledger reports.
+                            </div>
+                        </body>
+                    </html>
+                `;
+            };
+            
+            // Try to load report
+            frame.src = url;
+            
+            // Also check after a delay if frame loaded
+            setTimeout(() => {
+                try {
+                    if (frame.contentDocument && frame.contentDocument.body) {
+                        // Report loaded successfully
+                    }
+                } catch (e) {
+                    // Cross-origin or other error - this is normal for file://
+                }
+            }, 2000);
         }
         
         function goBack() {

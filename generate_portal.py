@@ -129,20 +129,31 @@ def generate_all_reports():
             save_ledgers_json(guid, alterid, ledgers)
             
             print(f"  -> Ledger Reports ({len(ledgers)} ledgers)...", end=" ")
-            for ledger in ledgers[:10]:  # Limit to first 10 for performance
+            generated_count = 0
+            for ledger in ledgers:  # Generate for ALL ledgers
                 try:
                     report_path = generator.generate_ledger_report(
                         name, guid, alterid, ledger['name'],
                         "01-04-2024", "31-12-2025"
                     )
-                    safe_ledger = ledger['name'].replace(' ', '_').replace('/', '_').replace('\\', '_')
+                    # Sanitize ledger name to match JavaScript
+                    safe_ledger = ledger['name'].strip()
+                    safe_ledger = safe_ledger.replace(' ', '_')
+                    safe_ledger = safe_ledger.replace('/', '_')
+                    safe_ledger = safe_ledger.replace('\\', '_')
+                    safe_ledger = safe_ledger.replace('\r', '')
+                    safe_ledger = safe_ledger.replace('\n', '')
                     safe_ledger = "".join(c if c.isalnum() or c in ('_', '-') else '_' for c in safe_ledger)
+                    safe_ledger = safe_ledger.replace('__', '_').replace('__', '_')  # Remove double underscores
+                    safe_ledger = safe_ledger.strip('_')  # Remove leading/trailing underscores
+                    
                     safe_name = f"ledger_{guid}_{alterid}_{safe_ledger}".replace('-', '_').replace('.', '_')
                     dest_path = os.path.join(REPORTS_DIR, f"{safe_name}.html")
                     shutil.copy(report_path, dest_path)
+                    generated_count += 1
                 except Exception as e:
                     pass
-            print("[OK]")
+            print(f"[OK] Generated {generated_count} ledger reports")
             
         except Exception as e:
             print(f"[ERROR] {e}")
