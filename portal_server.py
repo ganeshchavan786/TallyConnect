@@ -332,20 +332,25 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
 def start_server():
     """Start the portal server."""
     # Ensure we're in the right directory (works for both script and EXE)
-    base_dir = get_base_dir()
-    portal_path = os.path.join(base_dir, "reports", "portal")
+    # In EXE mode, portal is bundled in sys._MEIPASS
+    resource_dir = get_resource_dir()
+    portal_path = os.path.join(resource_dir, "reports", "portal")
     
     if os.path.exists(portal_path):
         os.chdir(portal_path)
+        print(f"[INFO] Portal directory found: {portal_path}")
     else:
-        # Try relative to current directory
+        # Try relative to current directory (for development)
         if os.path.exists("reports/portal"):
             os.chdir("reports/portal")
+            print(f"[INFO] Portal directory found: reports/portal")
         else:
             print(f"[ERROR] Portal directory not found!")
-            print(f"Base directory: {base_dir}")
+            print(f"Resource directory: {resource_dir}")
             print(f"Looking for: {portal_path}")
             print(f"Current directory: {os.getcwd()}")
+            if getattr(sys, 'frozen', False):
+                print(f"EXE mode - checking sys._MEIPASS: {sys._MEIPASS if hasattr(sys, '_MEIPASS') else 'N/A'}")
             input("Press Enter to exit...")
             return
     
