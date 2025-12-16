@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports - TallyConnect</title>
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/layout.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/utilities.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <h1>📊 TallyConnect</h1>
+            <p>Report Portal</p>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a class="nav-link" href="companies.html">🏢 Companies</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="reports.html">📊 Reports</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="ledgers.html" id="ledgersLink" style="display:none;">📗 Ledgers</a>
+            </li>
+        </ul>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="page active">
+            <a href="companies.html" class="back-button">← Back to Companies</a>
+            <h1 class="page-title">Select Report Type</h1>
+            <div class="report-grid">
+                <div class="report-card outstanding" onclick="window.location.href='outstanding-report.html'">
+                    <div class="report-icon">📊</div>
+                    <div class="report-title">Outstanding Report</div>
+                    <div class="report-desc">Party-wise receivables/payables</div>
+                </div>
+                <div class="report-card ledger" onclick="showLedgerSelection()">
+                    <div class="report-icon">📗</div>
+                    <div class="report-title">Ledger Report</div>
+                    <div class="report-desc">Transaction details by ledger</div>
+                </div>
+                <div class="report-card dashboard" onclick="window.location.href='dashboard.html'">
+                    <div class="report-icon">📈</div>
+                    <div class="report-title">Dashboard</div>
+                    <div class="report-desc">Business overview & analytics</div>
+                </div>
+                <div class="report-card sales" onclick="window.location.href='sales-register.html'" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <div class="report-icon">💰</div>
+                    <div class="report-title">Sales Register</div>
+                    <div class="report-desc">Monthly sales summary & voucher list</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript Files -->
+    <script src="assets/js/utils/helpers.js"></script>
+    <script src="assets/js/utils/export.js"></script>
+    <script src="assets/js/utils/filters.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/components/companies.js"></script>
+    <script src="assets/js/components/ledgers.js"></script>
+    <script src="assets/js/components/ledger-report.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script>
+        // Load selected company from sessionStorage (override app.js window.onload)
+        window.addEventListener('load', function() {
+            const savedCompany = sessionStorage.getItem('selectedCompany');
+            if (savedCompany) {
+                selectedCompany = JSON.parse(savedCompany);
+            } else {
+                // No company selected, redirect to companies
+                window.location.href = 'companies.html';
+            }
+        });
+        
+        // Override showLedgerSelection to navigate
+        function showLedgerSelection() {
+            if (!selectedCompany) {
+                window.location.href = 'companies.html';
+                return;
+            }
+            window.location.href = 'ledgers.html';
+        }
+    </script>
+</body>
+</html>
+

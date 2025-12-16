@@ -1,0 +1,25 @@
+/* ============================================
+   Utilities CSS - Helpers & Responsive
+   ============================================ */
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .controls-row {
+        flex-direction: column;
+    }
+    
+    .search-container {
+        width: 100%;
+    }
+    
+    .filter-group {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    
+    .ledger-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+

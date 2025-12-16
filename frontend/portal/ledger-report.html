@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ledger Report - TallyConnect</title>
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/layout.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/utilities.css">
+    <link rel="stylesheet" href="assets/css/ledger-report.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <h1>📊 TallyConnect</h1>
+            <p>Report Portal</p>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a class="nav-link" href="companies.html">🏢 Companies</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="reports.html">📊 Reports</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="ledgers.html">📗 Ledgers</a>
+            </li>
+        </ul>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="page active">
+            <a href="ledgers.html" class="back-button">← Back to Ledgers</a>
+            
+            <!-- Period Selection Controls -->
+            <div id="periodControls" style="display: none; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+                <div style="display: flex; gap: 15px; align-items: end; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 14px;">From Date</label>
+                        <input type="date" id="fromDate" style="width: 100%; padding: 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 14px;">
+                    </div>
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 14px;">To Date</label>
+                        <input type="date" id="toDate" style="width: 100%; padding: 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 14px;">
+                    </div>
+                    <div>
+                        <button id="applyPeriodBtn" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;">
+                            Apply Period
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="reportContent" class="report-viewer">
+                <div style="text-align: center; padding: 50px;">
+                    <div class="spinner" style="margin: 20px auto;"></div>
+                    <div style="color: #3498db; font-size: 18px; margin: 20px 0;">Loading ledger report...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript Files -->
+    <script src="assets/js/utils/helpers.js"></script>
+    <script src="assets/js/utils/export.js"></script>
+    <script src="assets/js/utils/filters.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/components/companies.js"></script>
+    <script src="assets/js/components/ledgers.js"></script>
+    <script src="assets/js/components/ledger-report.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script>
+        // Global variables for current report
+        let currentCompany = null;
+        let currentLedger = null;
+        
+        // Format date from DD-MM-YYYY to YYYY-MM-DD for input field
+        function formatDateForInput(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}-${parts[1]}-${parts[0]}`; // YYYY-MM-DD
+            }
+            return dateStr;
+        }
+        
+        // Format date from YYYY-MM-DD to DD-MM-YYYY for API
+        function formatDateForAPI(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}-${month}-${year}`;
+        }
+        
+        // Load report with current period
+        function loadReportWithPeriod() {
+            if (!currentCompany || !currentLedger) return;
+            
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+            
+            if (!fromDate || !toDate) {
+                alert('Please select both From Date and To Date');
+                return;
+            }
+            
+            const fromDateFormatted = formatDateForAPI(fromDate);
+            const toDateFormatted = formatDateForAPI(toDate);
+            
+            const apiUrl = `api/ledger-data/${currentCompany}/${encodeURIComponent(currentLedger)}?from=${fromDateFormatted}&to=${toDateFormatted}`;
+            loadLedgerReport(apiUrl, 'ledgers');
+        }
+        
+        // Load report from URL parameters (override app.js window.onload)
+        window.addEventListener('load', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            currentCompany = urlParams.get('company');
+            currentLedger = urlParams.get('ledger');
+            
+            if (currentCompany && currentLedger) {
+                // Decode ledger name
+                currentLedger = decodeURIComponent(currentLedger);
+                
+                // Show period controls
+                document.getElementById('periodControls').style.display = 'block';
+                
+                // Set default dates (Financial Year: 01-04-2024 to 31-12-2025)
+                const today = new Date();
+                const currentYear = today.getFullYear();
+                const fromDate = `${currentYear}-04-01`; // 1st April
+                const toDate = `${currentYear + 1}-03-31`; // 31st March next year
+                
+                // Check if dates are in URL
+                const urlFromDate = urlParams.get('from');
+                const urlToDate = urlParams.get('to');
+                
+                if (urlFromDate && urlToDate) {
+                    document.getElementById('fromDate').value = formatDateForInput(urlFromDate);
+                    document.getElementById('toDate').value = formatDateForInput(urlToDate);
+                } else {
+                    document.getElementById('fromDate').value = fromDate;
+                    document.getElementById('toDate').value = toDate;
+                }
+                
+                // Load report with initial dates
+                loadReportWithPeriod();
+                
+                // Add event listeners for period changes
+                document.getElementById('applyPeriodBtn').addEventListener('click', loadReportWithPeriod);
+                document.getElementById('fromDate').addEventListener('change', function() {
+                    // Auto-reload when date changes (optional - can remove if you want manual Apply button only)
+                    // loadReportWithPeriod();
+                });
+                document.getElementById('toDate').addEventListener('change', function() {
+                    // Auto-reload when date changes (optional - can remove if you want manual Apply button only)
+                    // loadReportWithPeriod();
+                });
+            } else {
+                document.getElementById('reportContent').innerHTML = `
+                    <div style="text-align: center; padding: 50px; color: #e74c3c;">
+                        <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                        <div style="font-size: 20px; font-weight: 600; margin: 20px 0;">Invalid Report Parameters</div>
+                        <div style="color: #7f8c8d; font-size: 14px;">Please select a ledger from the ledgers page.</div>
+                        <a href="ledgers.html" class="back-button" style="display: inline-block; margin-top: 20px;">Go to Ledgers</a>
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Register - TallyConnect</title>
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/layout.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/utilities.css">
+    <link rel="stylesheet" href="assets/css/ledger-report.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <h1>📊 TallyConnect</h1>
+            <p>Report Portal</p>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a class="nav-link" href="companies.html">🏢 Companies</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="reports.html">📊 Reports</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="ledgers.html">📗 Ledgers</a>
+            </li>
+        </ul>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="page active">
+            <a href="reports.html" class="back-button">← Back to Reports</a>
+            
+            <!-- Period Selection Controls -->
+            <div id="periodControls" style="display: none; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+                <div style="display: flex; gap: 15px; align-items: end; flex-wrap: wrap; margin-bottom: 15px;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 14px;">From Date</label>
+                        <input type="date" id="fromDate" style="width: 100%; padding: 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 14px;">
+                    </div>
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 14px;">To Date</label>
+                        <input type="date" id="toDate" style="width: 100%; padding: 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 14px;">
+                    </div>
+                    <div>
+                        <button id="applyPeriodBtn" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;">
+                            Apply Period
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- View Toggle -->
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <label style="font-weight: 600; color: #495057; font-size: 14px;">View:</label>
+                    <button id="viewMonthly" class="view-toggle active" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        Monthly Summary
+                    </button>
+                    <button id="viewVouchers" class="view-toggle" style="padding: 8px 16px; background: #95a5a6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        Voucher List
+                    </button>
+                </div>
+            </div>
+            
+            <div id="reportContent" class="report-viewer">
+                <div style="text-align: center; padding: 50px;">
+                    <div class="spinner" style="margin: 20px auto;"></div>
+                    <div style="color: #3498db; font-size: 18px; margin: 20px 0;">Loading sales register...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript Files -->
+    <script src="assets/js/utils/helpers.js"></script>
+    <script src="assets/js/utils/export.js"></script>
+    <script src="assets/js/utils/filters.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/components/companies.js"></script>
+    <script src="assets/js/components/ledgers.js"></script>
+    <script src="assets/js/components/sales-register.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script>
+        // Global variables
+        let currentCompany = null;
+        let currentView = 'monthly'; // 'monthly' or 'vouchers'
+        let salesRegisterData = null;
+        
+        // Store in window for global access
+        if (typeof window !== 'undefined') {
+            window.currentView = 'monthly';
+        }
+        
+        // Format date from YYYY-MM-DD to DD-MM-YYYY for API
+        function formatDateForAPI(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}-${month}-${year}`;
+        }
+        
+        // Load report with current period
+        function loadReportWithPeriod() {
+            if (!currentCompany) return;
+            
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+            
+            if (!fromDate || !toDate) {
+                alert('Please select both From Date and To Date');
+                return;
+            }
+            
+            const fromDateFormatted = formatDateForAPI(fromDate);
+            const toDateFormatted = formatDateForAPI(toDate);
+            
+            const safeGuid = currentCompany.guid.replace(/-/g, '_').replace(/\./g, '_');
+            const safeAlterid = String(currentCompany.alterid).replace(/\./g, '_');
+            const apiUrl = `api/sales-register-data/${safeGuid}_${safeAlterid}?from_date=${fromDate}&to_date=${toDate}`;
+            
+            loadSalesRegister(apiUrl, 'reports');
+        }
+        
+        // Toggle view
+        function toggleView(viewType) {
+            currentView = viewType;
+            if (typeof window !== 'undefined') {
+                window.currentView = viewType;
+            }
+            
+            // Update button styles
+            document.getElementById('viewMonthly').style.background = viewType === 'monthly' ? '#3498db' : '#95a5a6';
+            document.getElementById('viewVouchers').style.background = viewType === 'vouchers' ? '#3498db' : '#95a5a6';
+            
+            // Re-render with current data (use window.salesRegisterData if available)
+            const data = window.salesRegisterData || salesRegisterData;
+            if (data) {
+                renderSalesRegister(data, currentView);
+            } else {
+                // Reload if data not available
+                loadReportWithPeriod();
+            }
+        }
+        
+        // Load report from sessionStorage (override app.js window.onload)
+        window.addEventListener('load', function() {
+            const savedCompany = sessionStorage.getItem('selectedCompany');
+            if (savedCompany) {
+                currentCompany = JSON.parse(savedCompany);
+                
+                // Show period controls
+                document.getElementById('periodControls').style.display = 'block';
+                
+                // Set default dates (Financial Year: April 1 to March 31)
+                const today = new Date();
+                const currentYear = today.getFullYear();
+                let fromDate, toDate;
+                
+                if (today.getMonth() >= 3) { // April (3) to December
+                    fromDate = `${currentYear}-04-01`;
+                    toDate = `${currentYear + 1}-03-31`;
+                } else { // January to March
+                    fromDate = `${currentYear - 1}-04-01`;
+                    toDate = `${currentYear}-03-31`;
+                }
+                
+                document.getElementById('fromDate').value = fromDate;
+                document.getElementById('toDate').value = toDate;
+                
+                // Load report with initial dates
+                loadReportWithPeriod();
+                
+                // Add event listeners
+                document.getElementById('applyPeriodBtn').addEventListener('click', loadReportWithPeriod);
+                document.getElementById('viewMonthly').addEventListener('click', () => toggleView('monthly'));
+                document.getElementById('viewVouchers').addEventListener('click', () => toggleView('vouchers'));
+            } else {
+                window.location.href = 'companies.html';
+            }
+        });
+    </script>
+</body>
+</html>
+

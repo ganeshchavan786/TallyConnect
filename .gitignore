@@ -1,5 +1,3 @@
-# TallyConnect - Git Ignore File
-
 # Python
 __pycache__/
 *.py[cod]
@@ -21,23 +19,13 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # Virtual Environment
-.venv/
-.venv_build/
 venv/
-ENV/
 env/
-
-# PyInstaller
-*.manifest
-*.spec.bak
-
-# Database (Keep template, ignore actual data)
-tally_local_v5_6_optimized.db
-TalllyData.db
-TallyConnectDb.db
-*.db-journal
+ENV/
+.venv
 
 # IDE
 .vscode/
@@ -45,29 +33,102 @@ TallyConnectDb.db
 *.swp
 *.swo
 *~
+.cursor/
 
 # OS
 .DS_Store
 Thumbs.db
 desktop.ini
 
+# Database
+*.db
+*.sqlite
+*.sqlite3
+TallyConnectDb.db
+
 # Logs
 *.log
-
-# Notes
-notes/
-
-# Generated Reports (test outputs)
-generated_reports/
+logs/
 
 # Build artifacts
-BizAnalyst.exe
-BizAnalyst.spec
-BizAnalystInstaller.iss
-BizAnalystSetup.exe
+build/
+dist/
+*.spec
+*.exe
 
-# Backup files
-*.bak
-*.backup
-*Backup*.py
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
 
+# Node modules (if any)
+node_modules/
+
+# Environment variables
+.env
+.env.local
+
+# Test files
+test_*.py
+*_test.py
+tests/
+
+# Documentation builds
+docs/_build/
+
+# Portal generated files (if any)
+frontend/portal/api/reports/*.html
+
+# Scripts output
+scripts/check_voucher.py
+*.pyc
+
+# System files
+.anaconda/
+.aws/
+.bash_history
+.chocolatey/
+.codegpt/
+.conda/
+.condarc
+.config/
+.continuum/
+.copilot/
+.docker/
+.gitconfig
+.ipython/
+.lesshst
+.local/
+.matplotlib/
+.redhat/
+.rustup/
+.spyder-py3/
+.ssh/
+.th-client/
+3D Objects/
+AppData/
+Contacts/
+Desktop/
+Documents/
+Downloads/
+Favorites/
+Links/
+Music/
+NTUSER.DAT*
+ntuser.*
+OneDrive/
+Pictures/
+Saved Games/
+Searches/
+Videos/
+scoop/
+supabase/
+vscode-remote-wsl/
+result.bin
+*.sql.gz
+tally_companies.xml
+erp/
+IntelGraphicsProfiles/
+Jedi/
+GitHubDesktopSetup-x64.exe

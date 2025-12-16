@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ledgers - TallyConnect</title>
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/layout.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/utilities.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <h1>📊 TallyConnect</h1>
+            <p>Report Portal</p>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a class="nav-link" href="companies.html">🏢 Companies</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="reports.html">📊 Reports</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="ledgers.html">📗 Ledgers</a>
+            </li>
+        </ul>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="page active" style="position: relative;">
+            <a href="reports.html" class="back-button">← Back to Reports</a>
+            <h1 class="page-title">Select Ledger</h1>
+            
+            <!-- Professional Controls -->
+            <div class="ledger-controls">
+                <!-- Search and Filters Row -->
+                <div class="controls-row">
+                    <div class="search-container">
+                        <input type="text" id="ledgerSearch" class="search-input" placeholder="🔍 Search ledger by name..." oninput="filterLedgers()">
+                        <span class="search-icon">🔍</span>
+                    </div>
+                    <div class="filter-group">
+                        <select id="sortBy" class="filter-select" onchange="sortLedgers()">
+                            <option value="name-asc">Sort: Name (A-Z)</option>
+                            <option value="name-desc">Sort: Name (Z-A)</option>
+                            <option value="count-asc">Sort: Transactions (Low-High)</option>
+                            <option value="count-desc">Sort: Transactions (High-Low)</option>
+                        </select>
+                        <select id="filterCount" class="filter-select" onchange="filterLedgers()">
+                            <option value="all">All Transactions</option>
+                            <option value="0-10">0-10 Transactions</option>
+                            <option value="11-50">11-50 Transactions</option>
+                            <option value="51-100">51-100 Transactions</option>
+                            <option value="100+">100+ Transactions</option>
+                        </select>
+                        <button class="btn-clear" onclick="clearFilters()">Clear Filters</button>
+                        <button class="btn-export" onclick="exportLedgers()">
+                            📥 Export
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Data Context -->
+                <div class="data-context" id="dataContext">
+                    <strong>Loading...</strong>
+                </div>
+            </div>
+            
+            <!-- Loading Indicator -->
+            <div id="ledgerLoading" class="loading-overlay" style="display: none;">
+                <div class="spinner"></div>
+            </div>
+            
+            <!-- Ledger List -->
+            <div class="ledger-list" id="ledgerList">
+                <div class="loading">Loading ledgers...</div>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="pagination" id="pagination" style="display: none;"></div>
+        </div>
+    </div>
+    
+    <!-- JavaScript Files -->
+    <script src="assets/js/utils/helpers.js"></script>
+    <script src="assets/js/utils/export.js"></script>
+    <script src="assets/js/utils/filters.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/components/companies.js"></script>
+    <script src="assets/js/components/ledgers.js"></script>
+    <script src="assets/js/components/ledger-report.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script>
+        // Load selected company from sessionStorage (override app.js window.onload)
+        window.addEventListener('load', function() {
+            const savedCompany = sessionStorage.getItem('selectedCompany');
+            if (savedCompany) {
+                selectedCompany = JSON.parse(savedCompany);
+                loadLedgers();
+            } else {
+                // No company selected, redirect to companies
+                window.location.href = 'companies.html';
+            }
+        });
+        
+        // Override selectLedger to navigate to ledger-report.html
+        const originalSelectLedger = selectLedger;
+        selectLedger = function(ledger) {
+            selectedLedger = ledger;
+            // Store in sessionStorage
+            sessionStorage.setItem('selectedLedger', JSON.stringify(ledger));
+            // Navigate to ledger report page
+            const safeGuid = selectedCompany.guid.replace(/-/g, '_').replace(/\./g, '_');
+            const safeAlterid = String(selectedCompany.alterid).replace(/\./g, '_');
+            const originalLedgerName = ledger.name;
+            window.location.href = `ledger-report.html?company=${safeGuid}_${safeAlterid}&ledger=${encodeURIComponent(originalLedgerName)}`;
+        };
+    </script>
+</body>
+</html>
+

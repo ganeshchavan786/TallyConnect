@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - TallyConnect</title>
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/layout.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/utilities.css">
+    <link rel="stylesheet" href="assets/css/ledger-report.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <h1>📊 TallyConnect</h1>
+            <p>Report Portal</p>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a class="nav-link" href="companies.html">🏢 Companies</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="reports.html">📊 Reports</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="ledgers.html">📗 Ledgers</a>
+            </li>
+        </ul>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="page active">
+            <a href="reports.html" class="back-button">← Back to Reports</a>
+            <div id="reportContent" class="report-viewer">
+                <div style="text-align: center; padding: 50px;">
+                    <div class="spinner" style="margin: 20px auto;"></div>
+                    <div style="color: #3498db; font-size: 18px; margin: 20px 0;">Loading dashboard...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript Files -->
+    <script src="assets/js/utils/helpers.js"></script>
+    <script src="assets/js/utils/export.js"></script>
+    <script src="assets/js/utils/filters.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/components/companies.js"></script>
+    <script src="assets/js/components/ledgers.js"></script>
+    <script src="assets/js/components/dashboard.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script>
+        // Load report from sessionStorage (override app.js window.onload)
+        window.addEventListener('load', function() {
+            const savedCompany = sessionStorage.getItem('selectedCompany');
+            if (savedCompany) {
+                selectedCompany = JSON.parse(savedCompany);
+                const safeGuid = selectedCompany.guid.replace(/-/g, '_').replace(/\./g, '_');
+                const safeAlterid = String(selectedCompany.alterid).replace(/\./g, '_');
+                const apiUrl = `api/dashboard-data/${safeGuid}_${safeAlterid}`;
+                loadDashboardReport(apiUrl, 'reports');
+            } else {
+                window.location.href = 'companies.html';
+            }
+        });
+    </script>
+</body>
+</html>
+
