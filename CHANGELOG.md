@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0-alpha] - 2025-12-16
+
+### Added
+- **Sales Register ReportService Integration**
+  - Sales Register voucher list now uses ReportService for filtering, sorting, pagination, and export
+  - Custom sort functions for date, customer, amount
+  - Export functionality (CSV, Excel, PDF)
+  - Context display showing filtered/total records
+
+### Changed
+- **Navigation Flow Improvements**
+  - Auto-redirect from index.html to companies.html on startup
+  - Company selection now redirects to Dashboard (instead of Reports)
+  - Improved user flow: Companies → Dashboard
+
+- **Sidebar Menu Updates**
+  - Added menu items to all pages: Outstanding, Ledger, Sales Register
+  - Consistent navigation across all report pages
+  - Active page highlighting
+
+- **Ledger List Fixes**
+  - Search term no longer persists from localStorage
+  - Default view shows all ledgers (no search filter applied)
+  - Improved pagination behavior
+
+### Technical Details
+- Sales Register uses ReportService with custom render callbacks
+- Sidebar menu structure standardized across all HTML pages
+- Navigation flow optimized for better UX
+
 ## [1.0.0-alpha] - 2025-12-15
 
 ### Added
