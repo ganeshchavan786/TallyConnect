@@ -501,17 +501,31 @@ function loadLedgerPreferences() {
             const prefs = JSON.parse(saved);
             currentSort = prefs.sort || 'name-asc';
             currentFilter = prefs.filter || 'all';
-            currentSearch = prefs.search || '';
+            // Don't restore search term - always start with empty search to show all ledgers
+            currentSearch = '';
             itemsPerPage = prefs.itemsPerPage || 20;
-            currentPage = prefs.page || 1;
+            currentPage = 1; // Always start at page 1
             
             // Apply to UI
             document.getElementById('sortBy').value = currentSort;
             document.getElementById('filterCount').value = currentFilter;
-            document.getElementById('ledgerSearch').value = currentSearch;
+            document.getElementById('ledgerSearch').value = ''; // Clear search input
+        } else {
+            // Default values if no preferences saved
+            currentSort = 'name-asc';
+            currentFilter = 'all';
+            currentSearch = '';
+            itemsPerPage = 20;
+            currentPage = 1;
         }
     } catch (e) {
         console.warn('Could not load preferences:', e);
+        // Default values on error
+        currentSort = 'name-asc';
+        currentFilter = 'all';
+        currentSearch = '';
+        itemsPerPage = 20;
+        currentPage = 1;
     }
 }
 

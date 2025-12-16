@@ -23,10 +23,16 @@
                 <a class="nav-link active" href="companies.html">🏢 Companies</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="reports.html" id="reportsLink" style="display:none;">📊 Reports</a>
+                <a class="nav-link" href="dashboard.html" id="dashboardLink" style="display:none;">📈 Dashboard</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="ledgers.html" id="ledgersLink" style="display:none;">📗 Ledgers</a>
+                <a class="nav-link" href="outstanding-report.html" id="outstandingLink" style="display:none;">📊 Outstanding</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="ledgers.html" id="ledgersLink" style="display:none;">📗 Ledger</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="sales-register.html" id="salesRegisterLink" style="display:none;">💰 Sales Register</a>
             </li>
         </ul>
     </div>
@@ -51,14 +57,14 @@
     <script src="assets/js/components/ledger-report.js"></script>
     <script src="assets/js/app.js"></script>
     <script>
-        // Override selectCompany to navigate to reports.html
+        // Override selectCompany to navigate to dashboard.html
         const originalSelectCompany = selectCompany;
         selectCompany = function(company) {
             selectedCompany = company;
             // Store in sessionStorage for cross-page navigation
             sessionStorage.setItem('selectedCompany', JSON.stringify(company));
-            // Navigate to reports page
-            window.location.href = 'reports.html';
+            // Navigate to dashboard page
+            window.location.href = 'dashboard.html';
         };
         
         // Override displayCompanies to use new selectCompany
