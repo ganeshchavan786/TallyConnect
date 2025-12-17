@@ -81,7 +81,16 @@ class BizAnalystApp:
         self.current_theme = tk.StringVar(value=DEFAULT_THEME)
         self.colors = get_theme(self.current_theme.get()).copy()
         
-        self.db_conn = init_db()
+        # Initialize database (with timeout protection)
+        try:
+            self.db_conn = init_db()
+        except Exception as e:
+            print(f"[ERROR] Database initialization failed: {e}")
+            # Create minimal connection as fallback
+            import sqlite3
+            from backend.config.settings import DB_FILE
+            self.db_conn = sqlite3.connect(DB_FILE, check_same_thread=False, timeout=5.0)
+        
         self.db_lock = threading.Lock()
         # Initialize CompanyDAO for database operations
         self.company_dao = CompanyDAO(self.db_conn, self.db_lock)
@@ -118,13 +127,19 @@ class BizAnalystApp:
             self._build_menu()
         except:
             pass
+        # Start UI update in background to prevent blocking
+        self.root.after(100, self._initialize_after_ui)
+    
+    def _initialize_after_ui(self):
+        """Initialize non-critical components after UI is shown."""
         try:
             self.auto_detect_dsn(silent=True)
         except Exception:
             pass
         self._start_status_thread()
         self._mark_interrupted_syncs()
-        self._refresh_tree()
+        # Refresh tree in background to prevent blocking
+        self.root.after(200, self._refresh_tree)
 
     def _build_ui(self):
         self._create_styles()

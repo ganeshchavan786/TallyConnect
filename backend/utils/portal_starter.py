@@ -52,11 +52,16 @@ def start_portal_in_background():
         _portal_thread = threading.Thread(target=run_portal, daemon=True)
         _portal_thread.start()
         
-        # Wait a moment for server to start
-        time.sleep(2)
+        # Verify server in background (non-blocking)
+        def verify_in_background():
+            time.sleep(2)  # Wait for server to start
+            _verify_and_open_portal()
         
-        # Verify server is running and open browser
-        return _verify_and_open_portal()
+        verify_thread = threading.Thread(target=verify_in_background, daemon=True)
+        verify_thread.start()
+        
+        # Return immediately (non-blocking)
+        return True
             
     except ImportError as e:
         _log_error(f"Could not import portal_server: {e}")

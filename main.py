@@ -17,12 +17,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from backend.utils.portal_starter import start_portal_in_background, shutdown_portal
 
 if __name__ == "__main__":
-    # Start portal server in background
-    start_portal_in_background()
-    
     try:
-        # Start main GUI application
+        # Start main GUI application FIRST (non-blocking)
         from backend.app import main as start_main_app
+        
+        # Start portal server in background thread (non-blocking)
+        import threading
+        portal_thread = threading.Thread(target=start_portal_in_background, daemon=True)
+        portal_thread.start()
+        
+        # Start GUI (this will block until GUI closes)
         start_main_app()
     finally:
         # Shutdown portal when main app closes

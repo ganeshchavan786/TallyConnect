@@ -112,12 +112,12 @@
     <script src="assets/js/components/companies.js"></script>
     <script src="assets/js/app.js"></script>
     <script>
-        // Global state
+        // Global state (using different variable names to avoid conflict with app.js)
         let currentCompany = null;
         let currentLogLevel = '';
         let currentSyncStatus = '';
-        let currentPage = 1;
-        let itemsPerPage = 50;
+        let syncLogsCurrentPage = 1;  // Renamed to avoid conflict with app.js
+        let syncLogsItemsPerPage = 50;  // Renamed to avoid conflict with app.js
         let totalLogs = 0;
         let allCompanies = [];
         
@@ -163,8 +163,8 @@
                 params.push(`sync_status=${currentSyncStatus}`);
             }
             
-            params.push(`limit=${itemsPerPage}`);
-            params.push(`offset=${(currentPage - 1) * itemsPerPage}`);
+            params.push(`limit=${syncLogsItemsPerPage}`);
+            params.push(`offset=${(syncLogsCurrentPage - 1) * syncLogsItemsPerPage}`);
             
             apiUrl += params.join('&');
             
@@ -284,8 +284,8 @@
             const context = document.getElementById('logContext');
             const total = data.total_count || 0;
             const showing = data.logs ? data.logs.length : 0;
-            const startIndex = (currentPage - 1) * itemsPerPage + 1;
-            const endIndex = Math.min(currentPage * itemsPerPage, total);
+            const startIndex = (syncLogsCurrentPage - 1) * syncLogsItemsPerPage + 1;
+            const endIndex = Math.min(syncLogsCurrentPage * syncLogsItemsPerPage, total);
             
             let text = `<strong>${showing}</strong> of <strong>${total}</strong> logs`;
             if (currentCompany) {
@@ -301,7 +301,7 @@
                 text += ` | Status: <strong>${currentSyncStatus}</strong>`;
             }
             if (total > 0) {
-                text += ` | Showing <strong>${startIndex}-${endIndex}</strong> on page <strong>${currentPage}</strong>`;
+                text += ` | Showing <strong>${startIndex}-${endIndex}</strong> on page <strong>${syncLogsCurrentPage}</strong>`;
             }
             
             context.innerHTML = text;
@@ -310,7 +310,7 @@
         // Render pagination
         function renderPagination(data) {
             const pagination = document.getElementById('pagination');
-            const totalPages = Math.ceil((data.total_count || 0) / itemsPerPage);
+            const totalPages = Math.ceil((data.total_count || 0) / syncLogsItemsPerPage);
             
             if (totalPages <= 1) {
                 pagination.style.display = 'none';
@@ -323,25 +323,25 @@
             // Previous button
             const prevBtn = document.createElement('button');
             prevBtn.textContent = '← Previous';
-            prevBtn.disabled = currentPage === 1;
+            prevBtn.disabled = syncLogsCurrentPage === 1;
             prevBtn.onclick = () => {
-                if (currentPage > 1) {
-                    currentPage--;
+                if (syncLogsCurrentPage > 1) {
+                    syncLogsCurrentPage--;
                     loadSyncLogs();
                 }
             };
             pagination.appendChild(prevBtn);
             
             // Page numbers
-            const startPage = Math.max(1, currentPage - 2);
-            const endPage = Math.min(totalPages, currentPage + 2);
+            const startPage = Math.max(1, syncLogsCurrentPage - 2);
+            const endPage = Math.min(totalPages, syncLogsCurrentPage + 2);
             
             for (let i = startPage; i <= endPage; i++) {
                 const pageBtn = document.createElement('button');
                 pageBtn.textContent = i;
-                pageBtn.className = i === currentPage ? 'active' : '';
+                pageBtn.className = i === syncLogsCurrentPage ? 'active' : '';
                 pageBtn.onclick = () => {
-                    currentPage = i;
+                    syncLogsCurrentPage = i;
                     loadSyncLogs();
                 };
                 pagination.appendChild(pageBtn);
@@ -350,10 +350,10 @@
             // Next button
             const nextBtn = document.createElement('button');
             nextBtn.textContent = 'Next →';
-            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.disabled = syncLogsCurrentPage === totalPages;
             nextBtn.onclick = () => {
-                if (currentPage < totalPages) {
-                    currentPage++;
+                if (syncLogsCurrentPage < totalPages) {
+                    syncLogsCurrentPage++;
                     loadSyncLogs();
                 }
             };
@@ -387,19 +387,19 @@
             // Add event listeners
             document.getElementById('companyFilter').addEventListener('change', function() {
                 currentCompany = this.value || null;
-                currentPage = 1;
+                syncLogsCurrentPage = 1;
                 loadSyncLogs();
             });
             
             document.getElementById('logLevelFilter').addEventListener('change', function() {
                 currentLogLevel = this.value || '';
-                currentPage = 1;
+                syncLogsCurrentPage = 1;
                 loadSyncLogs();
             });
             
             document.getElementById('syncStatusFilter').addEventListener('change', function() {
                 currentSyncStatus = this.value || '';
-                currentPage = 1;
+                syncLogsCurrentPage = 1;
                 loadSyncLogs();
             });
         });

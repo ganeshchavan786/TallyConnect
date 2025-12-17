@@ -2,6 +2,57 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2025-12-17
+
+### Fixed
+- **EXE Hang Issue**
+  - Fixed application hanging on startup with "Not Responding" message
+  - Portal server startup moved to background thread (non-blocking)
+  - Database initialization with timeout protection
+  - UI initialization deferred to prevent blocking
+  - Application now starts in <1 second
+
+- **Sync Logs JavaScript Errors**
+  - Fixed `currentPage` duplicate declaration error
+  - Fixed `itemsPerPage` duplicate declaration error
+  - Renamed variables to avoid conflicts with app.js
+  - Sync logs page now loads without errors
+
+- **Sync Logs Functionality**
+  - Complete sync logs documentation created
+  - Test cases written and passing (15 tests)
+  - Diagnostic script for checking sync logs status
+  - All sync operations now properly log to database
+
+### Added
+- **Sync Logs System**
+  - Complete sync logs implementation with database storage
+  - Portal API endpoint for sync logs (`/api/sync-logs/`)
+  - Frontend sync logs page with filters and pagination
+  - Comprehensive test suite (15 tests, all passing)
+  - Diagnostic tools and documentation
+
+- **Documentation**
+  - `SYNC_LOGS_DOCUMENTATION.md` - Complete implementation guide
+  - `SYNC_LOGS_TEST_RESULTS.md` - Test results and coverage
+  - `SYNC_LOGS_ISSUE_FIX.md` - Issue diagnosis and fixes
+  - `EXE_HANG_FIX.md` - EXE hang issue resolution
+  - `SYNC_LOGS_JS_FIX.md` - JavaScript error fixes
+
+### Changed
+- **Performance Improvements**
+  - Non-blocking portal server startup
+  - Deferred UI initialization
+  - Background tree refresh
+  - Database connection timeout protection
+
+### Technical Details
+- Portal server starts in daemon thread
+- UI initialization uses `root.after()` for deferred loading
+- Database initialization has 5-second timeout
+- All JavaScript variable conflicts resolved
+- Sync logs use UTC timestamps for consistency
+
 ## [1.1.0-alpha] - 2025-12-16
 
 ### Added

@@ -141,15 +141,22 @@ def init_db(db_path=DB_FILE):
     """)
     
     # Phase 1: Critical Fixes - Add indexes for companies table
-    cur.execute("""
-    CREATE INDEX IF NOT EXISTS idx_companies_status 
-    ON companies(status)
-    """)
+    # Use IF NOT EXISTS to avoid errors if indexes already exist
+    try:
+        cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_companies_status 
+        ON companies(status)
+        """)
+    except:
+        pass  # Index may already exist
     
-    cur.execute("""
-    CREATE INDEX IF NOT EXISTS idx_companies_guid_alterid 
-    ON companies(guid, alterid)
-    """)
+    try:
+        cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_companies_guid_alterid 
+        ON companies(guid, alterid)
+        """)
+    except:
+        pass  # Index may already exist
     
     conn.commit()
     return conn

@@ -49,6 +49,11 @@ Welcome to the TallyConnect documentation. This folder contains all project docu
 - [Phase 5: Security & Validation](PHASE5_COMPLETION_SUMMARY.md) - Validators, Encryption, Enhanced Error Handling
 - [Phase 6: Code Quality](PHASE6_COMPLETION_SUMMARY.md) - Models, Unit Testing
 
+#### Feature Documentation
+- [Sync Logs Documentation](SYNC_LOGS_DOCUMENTATION.md) - Complete sync logs implementation guide
+- [Sync Logs Test Results](SYNC_LOGS_TEST_RESULTS.md) - Test results and coverage
+- [Caching Status](CACHING_STATUS.md) - Caching implementation status for all reports
+
 ### 📋 Quick Navigation
 
 **For Users:**
