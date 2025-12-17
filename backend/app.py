@@ -44,6 +44,9 @@ from backend.database.company_dao import CompanyDAO
 # ---------- Utilities ----------
 from backend.utils.error_handler import get_user_friendly_error
 from backend.utils.sync_logger import get_sync_logger
+from backend.utils.validators import (
+    validate_sync_params, CompanyValidator, DateValidator, ValidationError
+)
 
 def try_connect_dsn(dsn_name, timeout=5):
     """Try to connect to Tally DSN."""
@@ -1090,9 +1093,30 @@ Keyboard Shortcuts:
         dsn = self.dsn_var.get().strip()
         from_date = self.from_var.get().strip()
         to_date = self.to_var.get().strip()
+        
+        # Phase 5: Validate inputs
         if not dsn:
             messagebox.showwarning("DSN Required", "Enter or detect DSN first")
             return
+        
+        # Validate DSN
+        is_valid, error = CompanyValidator.validate_dsn(dsn)
+        if not is_valid:
+            messagebox.showerror("Invalid DSN", f"DSN validation failed: {error}")
+            return
+        
+        # Validate sync parameters
+        try:
+            is_valid, error = validate_sync_params(guid, alterid, from_date, to_date)
+            if not is_valid:
+                messagebox.showerror("Validation Error", f"Sync parameters invalid: {error}")
+                return
+        except ValidationError as ve:
+            from backend.utils.error_handler import handle_validation_error
+            error_msg = handle_validation_error(ve)
+            messagebox.showerror("Validation Error", error_msg)
+            return
+        
         key = f"{guid}|{alterid}"
 
         lock = self.sync_locks.setdefault(key, threading.Lock())
@@ -1751,6 +1775,25 @@ Keyboard Shortcuts:
                                           sync_status='completed')
                     except:
                         pass
+            # Phase 4: Invalidate cache after sync completes
+            try:
+                from backend.utils.cache import get_cache
+                cache = get_cache()
+                # Invalidate company list cache
+                cache.delete_pattern("companies_all_synced")
+                # Invalidate dashboard cache for this company
+                cache.delete_pattern(f"dashboard_data:{guid}")
+                # Invalidate sales register cache for this company
+                cache.delete_pattern(f"sales_register_data:{guid}")
+                # Invalidate ledger data cache for this company
+                cache.delete_pattern(f"ledger_data:{guid}")
+                # Invalidate outstanding data cache for this company
+                cache.delete_pattern(f"outstanding_data:{guid}")
+                self.log(f"[{name}] 🗑️ Cache invalidated after sync")
+            except Exception as cache_err:
+                # Non-critical - log but don't fail
+                print(f"[WARNING] Cache invalidation failed: {cache_err}")
+            
             self._refresh_tree()
             # Keep progress at 100% for 2 seconds, then reset to 0
             self.root.after(2000, lambda: self._update_progress(0))

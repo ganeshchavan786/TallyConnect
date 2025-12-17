@@ -28,3 +28,16 @@ python-dotenv>=1.0.0
 schedule>=1.2.0
 # For scheduled maintenance tasks (vacuum, log cleaning, health checks)
 
+# Redis Caching (Phase 4: Optional - only if REDIS_ENABLED=true)
+redis>=5.0.0
+# For high-performance caching (falls back to in-memory if not available)
+
+# Encryption (Phase 5: Security & Validation)
+cryptography>=41.0.0
+# For AES-256 encryption of sensitive data (Fernet)
+
+# Testing (Phase 6: Code Quality)
+pytest>=7.4.0
+pytest-cov>=4.1.0
+# For unit testing and code coverage
+

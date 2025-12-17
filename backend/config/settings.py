@@ -41,6 +41,18 @@ LOG_RETENTION_DAYS = int(os.getenv("LOG_RETENTION_DAYS", "90"))
 COMMON_PORTS = [9000, 9001, 9999, 9002]  # Can be overridden via env if needed
 DSN_PREFIX = os.getenv("DSN_PREFIX", "TallyODBC64_")
 
+# Redis Cache Configuration (Phase 4)
+REDIS_ENABLED = os.getenv("REDIS_ENABLED", "false").lower() == "true"
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")  # Empty string = no password
+CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "3600"))  # Default 1 hour
+
+# Encryption Configuration (Phase 5)
+ENCRYPTION_ENABLED = os.getenv("ENCRYPTION_ENABLED", "false").lower() == "true"
+ENCRYPTION_KEY_FILE = os.getenv("ENCRYPTION_KEY_FILE", "")  # Optional custom key file path
+
 # Tally Queries
 TALLY_COMPANY_QUERY = 'SELECT $Name, $GUID, $AlterID FROM Company'
 

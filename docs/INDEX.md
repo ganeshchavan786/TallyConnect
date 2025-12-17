@@ -34,6 +34,20 @@ Welcome to the TallyConnect documentation. This folder contains all project docu
 - **[PRACTICES_STATUS_SIMPLE.md](PRACTICES_STATUS_SIMPLE.md)** - Simple status summary in Marathi/Hindi mix
 - **[PHASE_WISE_IMPLEMENTATION_PLAN.md](PHASE_WISE_IMPLEMENTATION_PLAN.md)** - Complete phase-wise implementation plan with code examples and timelines
 - **[PHASE_PLAN_SIMPLE.md](PHASE_PLAN_SIMPLE.md)** - Simple phase-wise plan summary in Marathi/Hindi mix
+- **[REMAINING_BEST_PRACTICES.md](REMAINING_BEST_PRACTICES.md)** - Complete list of remaining best practices (Validators, Encryption, Models, etc.)
+- **[REMAINING_PRACTICES_SIMPLE.md](REMAINING_PRACTICES_SIMPLE.md)** - Simple list of remaining practices in Marathi/Hindi mix
+- **[REDIS_IMPLEMENTATION_GUIDE.md](REDIS_IMPLEMENTATION_GUIDE.md)** - Complete Redis implementation guide with examples and configuration
+- **[REDIS_BENEFITS_EXPLANATION.md](REDIS_BENEFITS_EXPLANATION.md)** - Simple explanation of Redis benefits in Marathi/Hindi mix with before/after examples
+- **[REDIS_CODE_EXAMPLE.md](REDIS_CODE_EXAMPLE.md)** - Before/after code examples showing Redis implementation
+- **[PHASE4_TO_6_IMPLEMENTATION_PLAN.md](PHASE4_TO_6_IMPLEMENTATION_PLAN.md)** - Complete phase-wise plan for Phase 4-6 including Redis, Validators, Encryption, Models, and Testing
+
+#### Phase Completion Summaries
+- [Phase 1: Critical Fixes](PHASE1_COMPLETION_SUMMARY.md) - Indexes, Backup, UTC Timestamps
+- [Phase 2: Security & Best Practices](PHASE2_COMPLETION_SUMMARY.md) - Environment Variables, Connection Closing
+- [Phase 3: Maintenance & Optimization](PHASE3_COMPLETION_SUMMARY.md) - Vacuuming, Log Cleaning, Health Checks
+- [Phase 4: Performance & Caching](PHASE4_COMPLETION_SUMMARY.md) - Redis Caching, Dashboard & Company List Caching
+- [Phase 5: Security & Validation](PHASE5_COMPLETION_SUMMARY.md) - Validators, Encryption, Enhanced Error Handling
+- [Phase 6: Code Quality](PHASE6_COMPLETION_SUMMARY.md) - Models, Unit Testing
 
 ### 📋 Quick Navigation
 

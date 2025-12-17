@@ -3,11 +3,17 @@ Company Data Access Object
 ==========================
 
 Handles all database operations related to companies.
+Phase 4: Added caching support for company list.
+Phase 5: Added data validation for company operations.
 """
 
 import sqlite3
 from typing import List, Tuple, Optional, Dict
 from datetime import datetime, timezone
+from backend.utils.cache import get_cache, cache_key
+from backend.utils.validators import (
+    CompanyValidator, validate_company_data, ValidationError
+)
 
 
 class CompanyDAO:
@@ -47,13 +53,28 @@ class CompanyDAO:
     def get_all_synced(self) -> List[Tuple]:
         """
         Get all synced companies.
+        Phase 4: Cached for better performance.
         
         Returns:
             List of tuples: (name, alterid, status, total_records, guid)
         """
+        # Phase 4: Check cache first
+        cache = get_cache()
+        cache_key_str = cache_key("companies_all_synced")
+        
+        cached_result = cache.get(cache_key_str)
+        if cached_result is not None:
+            return cached_result
+        
+        # Query database
         query = "SELECT name, alterid, status, total_records, guid FROM companies WHERE status='synced' ORDER BY name"
         cur = self._execute(query)
-        return cur.fetchall()
+        result = cur.fetchall()
+        
+        # Cache the result
+        cache.set(cache_key_str, result)
+        
+        return result
     
     def get_by_guid_alterid(self, guid: str, alterid: str) -> Optional[Tuple]:
         """
@@ -145,6 +166,7 @@ class CompanyDAO:
                          status: str = 'syncing') -> bool:
         """
         Insert or update company.
+        Phase 5: Added data validation.
         
         Args:
             name: Company name
@@ -155,7 +177,21 @@ class CompanyDAO:
             
         Returns:
             True if successful
+            
+        Raises:
+            ValidationError: If validation fails
         """
+        # Phase 5: Validate company data
+        is_valid, error = validate_company_data(name, guid, alterid)
+        if not is_valid:
+            raise ValidationError(f"Company validation failed: {error}")
+        
+        # Validate DSN if provided
+        if dsn:
+            is_valid, error = CompanyValidator.validate_dsn(dsn)
+            if not is_valid:
+                raise ValidationError(f"DSN validation failed: {error}")
+        
         # Check if exists
         existing = self.get_by_guid_alterid(guid, alterid)
         

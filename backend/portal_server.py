@@ -19,6 +19,7 @@ from urllib.parse import urlparse, parse_qs, parse_qsl, unquote
 from datetime import datetime
 from backend.report_generator import ReportGenerator
 from backend.database.queries import ReportQueries
+from backend.utils.cache import get_cache, cache_key
 
 # Get absolute path to database (works from any directory and in EXE)
 def get_base_dir():
@@ -500,6 +501,26 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             from_date = query_params.get('from', ['01-04-2024'])[0]
             to_date = query_params.get('to', ['31-12-2025'])[0]
             
+            # Phase 4: Check Redis cache first (for performance)
+            cache = get_cache()
+            cache_key_str = cache_key(
+                "ledger_data",
+                guid=guid,
+                alterid=alterid,
+                ledger=ledger_name,
+                from_date=from_date,
+                to_date=to_date
+            )
+            
+            # Try to get from cache
+            cached_data = cache.get(cache_key_str)
+            if cached_data is not None:
+                print(f"[INFO] Ledger Data: Cache HIT for {ledger_name}")
+                self.send_json_response(cached_data)
+                return
+            
+            print(f"[INFO] Ledger Data: Cache MISS, processing data for {ledger_name}...")
+            
             # Query database
             db_path = os.path.join(get_base_dir(), "TallyConnectDb.db")
             conn = sqlite3.connect(db_path)
@@ -643,6 +664,11 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             }
             
             conn.close()
+            
+            # Phase 4: Cache the response (TTL: 30 minutes)
+            cache.set(cache_key_str, response_data, ttl=1800)
+            print(f"[INFO] Ledger Data: Cached {ledger_name} (TTL: 1800s)")
+            
             self.send_json_response(response_data)
             
         except Exception as e:
@@ -670,6 +696,23 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                 alterid = '.'.join(guid_parts[5:])  # Reconstruct alterid (dots were replaced with underscores)
             else:
                 alterid = ''
+            
+            # Phase 4: Check Redis cache first (for performance)
+            cache = get_cache()
+            cache_key_str = cache_key(
+                "outstanding_data",
+                guid=guid,
+                alterid=alterid
+            )
+            
+            # Try to get from cache
+            cached_data = cache.get(cache_key_str)
+            if cached_data is not None:
+                print(f"[INFO] Outstanding Data: Cache HIT")
+                self.send_json_response(cached_data)
+                return
+            
+            print(f"[INFO] Outstanding Data: Cache MISS, processing data...")
             
             # Query database
             db_path = os.path.join(get_base_dir(), "TallyConnectDb.db")
@@ -719,6 +762,11 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             }
             
             conn.close()
+            
+            # Phase 4: Cache the response (TTL: 1 hour)
+            cache.set(cache_key_str, response_data, ttl=3600)
+            print(f"[INFO] Outstanding Data: Cached (TTL: 3600s)")
+            
             self.send_json_response(response_data)
             
         except Exception as e:
@@ -746,6 +794,27 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                 alterid = '.'.join(guid_parts[5:])  # Reconstruct alterid (dots were replaced with underscores)
             else:
                 alterid = ''
+            
+            # Phase 4: Check cache first
+            cache = get_cache()
+            query_params = {}
+            if parsed.query:
+                query_params = {k: v[0] if isinstance(v, list) and len(v) > 0 else v 
+                               for k, v in parse_qs(parsed.query).items()}
+            
+            # Generate cache key including query parameters
+            cache_key_str = cache_key(
+                "dashboard_data",
+                guid=guid,
+                alterid=alterid,
+                **query_params
+            )
+            
+            # Try to get from cache
+            cached_data = cache.get(cache_key_str)
+            if cached_data is not None:
+                self.send_json_response(cached_data)
+                return
             
             # Query database
             db_path = os.path.join(get_base_dir(), "TallyConnectDb.db")
@@ -792,7 +861,6 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             
             # Parse query parameters for date filtering
             from datetime import datetime, timedelta
-            from urllib.parse import parse_qs
             
             query_params = {}
             if parsed.query:
@@ -921,6 +989,10 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             }
             
             conn.close()
+            
+            # Phase 4: Cache the response
+            cache.set(cache_key_str, response_data)
+            
             self.send_json_response(response_data)
             
         except Exception as e:
@@ -947,10 +1019,16 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             else:
                 alterid = ''
             
-            # Get date range from query parameters
+            # Get date range and pagination from query parameters
             query_params = dict(parse_qsl(parsed.query))
             from_date = query_params.get('from_date', '')
             to_date = query_params.get('to_date', '')
+            
+            # Pagination support (for large datasets)
+            view_type = query_params.get('view', 'monthly')  # 'monthly' or 'voucher_list'
+            page = int(query_params.get('page', '1'))
+            limit = int(query_params.get('limit', '1000'))  # Default 1000 vouchers per page
+            offset = (page - 1) * limit
             
             # Default to Financial Year if dates not provided
             if not from_date or not to_date:
@@ -963,6 +1041,28 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                 else:
                     from_date = f"{current_year - 1}-04-01"
                     to_date = f"{current_year}-03-31"
+            
+            # Phase 4: Check Redis cache first (for performance)
+            cache = get_cache()
+            cache_key_str = cache_key(
+                "sales_register_data",
+                guid=guid,
+                alterid=alterid,
+                from_date=from_date,
+                to_date=to_date,
+                view_type=view_type,
+                page=page,
+                limit=limit
+            )
+            
+            # Try to get from cache
+            cached_data = cache.get(cache_key_str)
+            if cached_data is not None:
+                print(f"[INFO] Sales Register: Cache HIT for {view_type} view")
+                self.send_json_response(cached_data)
+                return
+            
+            print(f"[INFO] Sales Register: Cache MISS, processing data...")
             
             # Query database
             db_path = os.path.join(get_base_dir(), "TallyConnectDb.db")
@@ -982,61 +1082,95 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             # Query monthly summary - CORRECT LOGIC: Only Sales ledger's Credit amount
             from backend.database.queries import ReportQueries
             
-            # Step 1: Get all unique Sales vouchers
-            cursor.execute(ReportQueries.SALES_REGISTER_VOUCHER_IDS, (guid, alterid, from_date, to_date))
-            unique_vouchers = cursor.fetchall()
+            # Step 1: Get unique Sales vouchers (with LIMIT for performance)
+            # For monthly summary, we need all vouchers but can optimize
+            # For voucher list view, use pagination
+            total_vouchers = 0
+            if view_type == 'monthly':
+                # Monthly summary: Process all but in optimized batches
+                cursor.execute(ReportQueries.SALES_REGISTER_VOUCHER_IDS, (guid, alterid, from_date, to_date))
+                unique_vouchers = cursor.fetchall()
+                total_vouchers = len(unique_vouchers)
+                print(f"[INFO] Processing {total_vouchers} vouchers for monthly summary...")
+            else:
+                # Get total count first
+                cursor.execute("""
+                    SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(vch_mst_id), ''), vch_date || '|' || vch_no)) as total
+                    FROM vouchers
+                    WHERE company_guid = ? AND company_alterid = ?
+                        AND vch_date >= ? AND vch_date <= ?
+                        AND UPPER(TRIM(led_name)) LIKE '%SALES%'
+                """, (guid, alterid, from_date, to_date))
+                total_count_row = cursor.fetchone()
+                total_vouchers = total_count_row['total'] if total_count_row else 0
+                
+                # Voucher list: Use pagination
+                voucher_ids_query = ReportQueries.SALES_REGISTER_VOUCHER_IDS + f" LIMIT {limit} OFFSET {offset}"
+                cursor.execute(voucher_ids_query, (guid, alterid, from_date, to_date))
+                unique_vouchers = cursor.fetchall()
+                print(f"[INFO] Processing page {page}: {len(unique_vouchers)} of {total_vouchers} vouchers (limit={limit}, offset={offset})...")
             
             # Step 2: For each voucher, find Sales ledger line and extract only its Credit amount
             monthly_totals = {}  # {month_key: {'debit': 0, 'credit': 0, 'voucher_count': 0}}
             
-            for vch in unique_vouchers:
-                voucher_key = vch['voucher_key']
-                vch_date = vch['vch_date']
-                vch_no = vch['vch_no']
+            # Process in batches to avoid memory issues
+            batch_size = 100
+            processed = 0
+            for i in range(0, len(unique_vouchers), batch_size):
+                batch = unique_vouchers[i:i+batch_size]
+                for vch in batch:
+                    voucher_key = vch['voucher_key']
+                    vch_date = vch['vch_date']
+                    vch_no = vch['vch_no']
+                    
+                    # Step 3: Find Sales ledger line for this voucher
+                    # Try with vch_mst_id first, then fallback to vch_date + vch_no
+                    cursor.execute(ReportQueries.SALES_REGISTER_SALES_LEDGER_LINE, 
+                                 (guid, alterid, voucher_key, vch_date, vch_no))
+                    sales_line = cursor.fetchone()
+                    
+                    if sales_line:
+                        # Extract month from date (handle both DD-MM-YYYY and YYYY-MM-DD formats)
+                        date_str = sales_line['vch_date']
+                        month_key = None
+                        year = None
+                        
+                        # Try YYYY-MM-DD format first
+                        if '-' in date_str and len(date_str) >= 7:
+                            parts = date_str.split('-')
+                            if len(parts) >= 2 and len(parts[0]) == 4:  # YYYY-MM-DD
+                                year = parts[0]
+                                month_key = f"{parts[0]}-{parts[1]}"
+                            elif len(parts) >= 3 and len(parts[2]) == 4:  # DD-MM-YYYY
+                                year = parts[2]
+                                month_key = f"{parts[2]}-{parts[1]}"
+                        
+                        if not month_key:
+                            # Fallback: use original date
+                            month_key = date_str[:7] if len(date_str) >= 7 else date_str
+                            year = date_str[:4] if len(date_str) >= 4 else ''
+                        
+                        # Initialize month if not exists
+                        if month_key not in monthly_totals:
+                            monthly_totals[month_key] = {
+                                'debit': 0,
+                                'credit': 0,
+                                'voucher_count': 0,
+                                'year': year
+                            }
+                        
+                        # Add ONLY Sales ledger's amounts
+                        debit_amt = float(sales_line['debit'] or 0)
+                        credit_amt = float(sales_line['credit'] or 0)
+                        
+                        monthly_totals[month_key]['debit'] += debit_amt
+                        monthly_totals[month_key]['credit'] += credit_amt
+                        monthly_totals[month_key]['voucher_count'] += 1
+                        processed += 1
                 
-                # Step 3: Find Sales ledger line for this voucher
-                # Try with vch_mst_id first, then fallback to vch_date + vch_no
-                cursor.execute(ReportQueries.SALES_REGISTER_SALES_LEDGER_LINE, 
-                             (guid, alterid, voucher_key, vch_date, vch_no))
-                sales_line = cursor.fetchone()
-                
-                if sales_line:
-                    # Extract month from date (handle both DD-MM-YYYY and YYYY-MM-DD formats)
-                    date_str = sales_line['vch_date']
-                    month_key = None
-                    year = None
-                    
-                    # Try YYYY-MM-DD format first
-                    if '-' in date_str and len(date_str) >= 7:
-                        parts = date_str.split('-')
-                        if len(parts) >= 2 and len(parts[0]) == 4:  # YYYY-MM-DD
-                            year = parts[0]
-                            month_key = f"{parts[0]}-{parts[1]}"
-                        elif len(parts) >= 3 and len(parts[2]) == 4:  # DD-MM-YYYY
-                            year = parts[2]
-                            month_key = f"{parts[2]}-{parts[1]}"
-                    
-                    if not month_key:
-                        # Fallback: use original date
-                        month_key = date_str[:7] if len(date_str) >= 7 else date_str
-                        year = date_str[:4] if len(date_str) >= 4 else ''
-                    
-                    # Initialize month if not exists
-                    if month_key not in monthly_totals:
-                        monthly_totals[month_key] = {
-                            'debit': 0,
-                            'credit': 0,
-                            'voucher_count': 0,
-                            'year': year
-                        }
-                    
-                    # Add ONLY Sales ledger's amounts
-                    debit_amt = float(sales_line['debit'] or 0)
-                    credit_amt = float(sales_line['credit'] or 0)
-                    
-                    monthly_totals[month_key]['debit'] += debit_amt
-                    monthly_totals[month_key]['credit'] += credit_amt
-                    monthly_totals[month_key]['voucher_count'] += 1
+                # Progress update every batch
+                if (i + batch_size) % 500 == 0:
+                    print(f"[INFO] Processed {processed}/{len(unique_vouchers)} vouchers...")
             
             # Step 4: Convert to list with month names and calculate running balance
             monthly_list = []
@@ -1082,12 +1216,20 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             # Query voucher list - CORRECT LOGIC: Only Sales ledger's Credit amount per voucher
             # Use same approach as monthly summary - get unique vouchers, then find Sales ledger line for each
             
-            # Step 1: Get all unique Sales vouchers (reuse the same query as monthly summary)
-            cursor.execute(ReportQueries.SALES_REGISTER_VOUCHER_IDS, (guid, alterid, from_date, to_date))
-            unique_vouchers = cursor.fetchall()
+            # Step 1: Get unique Sales vouchers with pagination (only for voucher_list view)
+            if view_type == 'voucher_list':
+                # Get paginated vouchers for voucher list view
+                voucher_ids_query = ReportQueries.SALES_REGISTER_VOUCHER_IDS + f" LIMIT {limit} OFFSET {offset}"
+                cursor.execute(voucher_ids_query, (guid, alterid, from_date, to_date))
+                voucher_list_vouchers = cursor.fetchall()
+                print(f"[INFO] Processing {len(voucher_list_vouchers)} vouchers for voucher list...")
+            else:
+                # For monthly summary, voucher list is not needed
+                voucher_list_vouchers = []
             
             voucher_list = []
-            for vch in unique_vouchers:
+            processed = 0
+            for vch in voucher_list_vouchers:
                 voucher_key = vch['voucher_key']
                 vch_date = vch['vch_date']
                 vch_no = vch['vch_no']
@@ -1177,11 +1319,22 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                         'credit': sales_credit,  # Always 0 for Sales in Tally
                         'narration': narration or ''
                     })
+                    processed += 1
+                    
+                    # Progress update every 100 vouchers
+                    if processed % 100 == 0:
+                        print(f"[INFO] Processed {processed}/{len(voucher_list_vouchers)} vouchers for list...")
             
             response_data = {
                 'company_name': company_name,
                 'from_date': from_date,
                 'to_date': to_date,
+                'pagination': {
+                    'page': page,
+                    'limit': limit,
+                    'total': total_vouchers if view_type == 'voucher_list' else len(unique_vouchers),
+                    'has_more': (offset + limit) < total_vouchers if view_type == 'voucher_list' else False
+                },
                 'monthly_summary': monthly_list,
                 'vouchers': voucher_list,
                 'total_debit': total_debit,
@@ -1191,6 +1344,12 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             }
             
             conn.close()
+            
+            # Phase 4: Cache the response (TTL: 1 hour for monthly, 30 min for voucher_list)
+            cache_ttl = 3600 if view_type == 'monthly' else 1800  # 1 hour for monthly, 30 min for list
+            cache.set(cache_key_str, response_data, ttl=cache_ttl)
+            print(f"[INFO] Sales Register: Cached {view_type} view (TTL: {cache_ttl}s)")
+            
             self.send_json_response(response_data)
             
         except Exception as e:
