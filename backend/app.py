@@ -1727,6 +1727,17 @@ Keyboard Shortcuts:
 
             self._update_progress(100)
             
+            # Phase 1: Critical Fixes - Create backup after successful sync
+            try:
+                from backend.utils.backup import backup_database
+                success, message = backup_database(DB_FILE)
+                if success:
+                    self.log(f"[{name}] 💾 {message}")
+                else:
+                    self.log(f"[{name}] ⚠️ Backup warning: {message}")
+            except Exception as backup_err:
+                self.log(f"[{name}] ⚠️ Backup failed (non-critical): {backup_err}")
+            
             # Only show COMPLETE if batches were actually processed
             if batch_count > 0:
                 self.log(f"✅ COMPLETE: {name} | {actual_vouchers} vouchers synced in {batch_count} batches!")

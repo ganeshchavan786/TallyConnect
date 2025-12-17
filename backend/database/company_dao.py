@@ -7,8 +7,7 @@ Handles all database operations related to companies.
 
 import sqlite3
 from typing import List, Tuple, Optional, Dict
-from datetime import datetime
-import sqlite3
+from datetime import datetime, timezone
 
 
 class CompanyDAO:
@@ -71,8 +70,12 @@ class CompanyDAO:
         # Database stores alterid as TEXT, so we need string comparison
         alterid_str = str(alterid) if alterid is not None else ""
         
-        # Use explicit CAST to ensure type matching
-        query = "SELECT * FROM companies WHERE guid=? AND CAST(alterid AS TEXT)=?"
+        # Phase 2: Use specific columns instead of SELECT * for better performance
+        query = """
+        SELECT id, name, guid, alterid, dsn, status, total_records, last_sync, created_at 
+        FROM companies 
+        WHERE guid=? AND CAST(alterid AS TEXT)=?
+        """
         cur = self._execute(query, (guid, alterid_str))
         result = cur.fetchone()
         
@@ -206,7 +209,8 @@ class CompanyDAO:
         """
         # CRITICAL: Ensure alterid is string for proper matching
         alterid_str = str(alterid) if alterid is not None else ""
-        last_sync = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Phase 1: Use UTC timestamps for consistency
+        last_sync = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         
         # Check if company with this exact GUID+AlterID exists
         existing = self.get_by_guid_alterid(guid, alterid_str)
@@ -305,7 +309,12 @@ class CompanyDAO:
                     # Check if there's a constraint violation or other issue
                     try:
                         # Try to find by GUID only to see if there's a conflict
-                        query_check = "SELECT * FROM companies WHERE guid=?"
+                        # Phase 2: Use specific columns instead of SELECT *
+                        query_check = """
+                        SELECT id, name, guid, alterid, dsn, status, total_records, last_sync, created_at 
+                        FROM companies 
+                        WHERE guid=?
+                        """
                         cur = self._execute(query_check, (guid,))
                         all_with_guid = cur.fetchall()
                         if all_with_guid:

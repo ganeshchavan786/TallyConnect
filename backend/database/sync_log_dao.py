@@ -7,7 +7,7 @@ Handles all database operations related to sync logs.
 
 import sqlite3
 from typing import List, Tuple, Optional, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class SyncLogDAO:
@@ -75,7 +75,8 @@ class SyncLogDAO:
          duration_seconds, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
-        created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Phase 1: Use UTC timestamps for consistency
+        created_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         params = (company_guid, company_alterid, company_name, log_level, log_message,
                  log_details, sync_status, records_synced, error_code, error_message,
                  duration_seconds, created_at)

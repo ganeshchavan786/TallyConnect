@@ -20,3 +20,11 @@ pystray>=0.19.0
 Pillow>=10.0.0
 # For system tray icons (Portal and Main app)
 
+# Environment Variables (Phase 2)
+python-dotenv>=1.0.0
+# For loading configuration from .env file
+
+# Scheduled Maintenance (Phase 3)
+schedule>=1.2.0
+# For scheduled maintenance tasks (vacuum, log cleaning, health checks)
+

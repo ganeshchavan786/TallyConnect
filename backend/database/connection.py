@@ -7,6 +7,7 @@ Handles SQLite database initialization and connection management.
 
 import sqlite3
 import os
+from contextlib import contextmanager
 from backend.config.settings import DB_FILE
 
 
@@ -117,6 +118,39 @@ def init_db(db_path=DB_FILE):
     ON sync_logs(log_level)
     """)
     
+    # Phase 1: Critical Fixes - Add indexes for vouchers table (Performance Critical)
+    # These indexes will significantly improve dashboard query performance
+    cur.execute("""
+    CREATE INDEX IF NOT EXISTS idx_vouchers_company_date 
+    ON vouchers(company_guid, company_alterid, vch_date)
+    """)
+    
+    cur.execute("""
+    CREATE INDEX IF NOT EXISTS idx_vouchers_date 
+    ON vouchers(vch_date)
+    """)
+    
+    cur.execute("""
+    CREATE INDEX IF NOT EXISTS idx_vouchers_type 
+    ON vouchers(vch_type)
+    """)
+    
+    cur.execute("""
+    CREATE INDEX IF NOT EXISTS idx_vouchers_company 
+    ON vouchers(company_guid, company_alterid)
+    """)
+    
+    # Phase 1: Critical Fixes - Add indexes for companies table
+    cur.execute("""
+    CREATE INDEX IF NOT EXISTS idx_companies_status 
+    ON companies(status)
+    """)
+    
+    cur.execute("""
+    CREATE INDEX IF NOT EXISTS idx_companies_guid_alterid 
+    ON companies(guid, alterid)
+    """)
+    
     conn.commit()
     return conn
 
@@ -140,4 +174,37 @@ def get_db_connection(db_path=DB_FILE):
         db_path = os.path.abspath(db_path)
     
     return sqlite3.connect(db_path, check_same_thread=False)
+
+
+@contextmanager
+def get_db_connection_with_context(db_path=DB_FILE):
+    """
+    Phase 2: Get database connection with context manager.
+    Auto-closes connection when done.
+    
+    Usage:
+        with get_db_connection_with_context() as conn:
+            cur = conn.cursor()
+            # ... operations
+        # Connection auto-closes here
+    
+    Args:
+        db_path: Path to SQLite database file (relative or absolute)
+        
+    Yields:
+        sqlite3.Connection: Database connection object
+    """
+    # If relative path, resolve from project root (where main.py is)
+    if not os.path.isabs(db_path):
+        # Get project root: go up from backend/database/connection.py
+        current_file = os.path.abspath(__file__)
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+        db_path = os.path.join(project_root, db_path)
+        db_path = os.path.abspath(db_path)
+    
+    conn = sqlite3.connect(db_path, check_same_thread=False)
+    try:
+        yield conn
+    finally:
+        conn.close()
 
