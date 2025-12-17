@@ -35,6 +35,9 @@
             <li class="nav-item">
                 <a class="nav-link" href="sales-register.html">💰 Sales Register</a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link" href="sync-logs.html">📋 Sync Logs</a>
+            </li>
         </ul>
     </div>
     
@@ -42,6 +45,8 @@
     <div class="main-content">
         <div class="page active">
             <a href="reports.html" class="back-button">← Back to Reports</a>
+            <!-- Filter Container -->
+            <div id="filterContainer" style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;"></div>
             <div id="reportContent" class="report-viewer">
                 <div style="text-align: center; padding: 50px;">
                     <div class="spinner" style="margin: 20px auto;"></div>
@@ -51,29 +56,73 @@
         </div>
     </div>
     
+    <!-- Chart.js Library (Open Source) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
     <!-- JavaScript Files -->
     <script src="assets/js/utils/helpers.js"></script>
     <script src="assets/js/utils/export.js"></script>
     <script src="assets/js/utils/filters.js"></script>
+    <script src="assets/js/utils/date-filters.js"></script>
     <script src="assets/js/api.js"></script>
     <script src="assets/js/components/companies.js"></script>
     <script src="assets/js/components/ledgers.js"></script>
     <script src="assets/js/components/dashboard.js"></script>
     <script src="assets/js/app.js"></script>
     <script>
+        // Global date filter manager
+        let dashboardDateFilter = null;
+        
         // Load report from sessionStorage (override app.js window.onload)
         window.addEventListener('load', function() {
             const savedCompany = sessionStorage.getItem('selectedCompany');
             if (savedCompany) {
                 selectedCompany = JSON.parse(savedCompany);
-                const safeGuid = selectedCompany.guid.replace(/-/g, '_').replace(/\./g, '_');
-                const safeAlterid = String(selectedCompany.alterid).replace(/\./g, '_');
-                const apiUrl = `api/dashboard-data/${safeGuid}_${safeAlterid}`;
-                loadDashboardReport(apiUrl, 'reports');
+                
+                // Initialize date filter manager
+                dashboardDateFilter = new DateFilterManager({
+                    containerId: 'filterContainer',
+                    defaultDateRange: 'current_financial_year',
+                    onFilterChange: function(filterParams) {
+                        // Reload dashboard with new filter parameters
+                        reloadDashboardWithFilters(filterParams);
+                    }
+                });
+                dashboardDateFilter.render();
+                
+                // Load dashboard with initial filters
+                const filterParams = dashboardDateFilter.getFilterParams();
+                loadDashboardReportWithFilters(filterParams);
             } else {
                 window.location.href = 'companies.html';
             }
         });
+        
+        /**
+         * Load dashboard with filter parameters
+         */
+        function loadDashboardReportWithFilters(filterParams) {
+            const safeGuid = selectedCompany.guid.replace(/-/g, '_').replace(/\./g, '_');
+            const safeAlterid = String(selectedCompany.alterid).replace(/\./g, '_');
+            
+            // Build API URL with query parameters
+            const params = new URLSearchParams();
+            if (filterParams.start_date) params.append('start_date', filterParams.start_date);
+            if (filterParams.end_date) params.append('end_date', filterParams.end_date);
+            if (filterParams.financial_year) params.append('financial_year', filterParams.financial_year);
+            
+            const queryString = params.toString();
+            const apiUrl = `api/dashboard-data/${safeGuid}_${safeAlterid}${queryString ? '?' + queryString : ''}`;
+            
+            loadDashboardReport(apiUrl, 'reports');
+        }
+        
+        /**
+         * Reload dashboard when filters change
+         */
+        function reloadDashboardWithFilters(filterParams) {
+            loadDashboardReportWithFilters(filterParams);
+        }
     </script>
 </body>
 </html>

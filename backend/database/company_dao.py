@@ -8,6 +8,7 @@ Handles all database operations related to companies.
 import sqlite3
 from typing import List, Tuple, Optional, Dict
 from datetime import datetime
+import sqlite3
 
 
 class CompanyDAO:
@@ -61,14 +62,37 @@ class CompanyDAO:
         
         Args:
             guid: Company GUID
-            alterid: Company AlterID
+            alterid: Company AlterID (will be converted to string)
             
         Returns:
             Tuple of company data or None
         """
-        query = "SELECT * FROM companies WHERE guid=? AND alterid=?"
-        cur = self._execute(query, (guid, alterid))
-        return cur.fetchone()
+        # CRITICAL: Convert alterid to string for proper matching
+        # Database stores alterid as TEXT, so we need string comparison
+        alterid_str = str(alterid) if alterid is not None else ""
+        
+        # Use explicit CAST to ensure type matching
+        query = "SELECT * FROM companies WHERE guid=? AND CAST(alterid AS TEXT)=?"
+        cur = self._execute(query, (guid, alterid_str))
+        result = cur.fetchone()
+        
+        # Additional verification: Check if result actually matches
+        if result:
+            result_alterid = str(result[3]) if len(result) > 3 else ""
+            result_guid = result[2] if len(result) > 2 else ""
+            
+            # Verify exact match
+            if result_guid != guid or result_alterid != alterid_str:
+                print(f"[WARNING] get_by_guid_alterid: Query returned wrong company!")
+                print(f"  Expected: GUID={guid}, AlterID={alterid_str}")
+                print(f"  Got: GUID={result_guid}, AlterID={result_alterid}")
+                return None
+            
+            print(f"[DEBUG] get_by_guid_alterid: Found company - Name: {result[1] if len(result) > 1 else 'Unknown'}, AlterID in DB: {result_alterid}, Searched AlterID: {alterid_str}")
+        else:
+            print(f"[DEBUG] get_by_guid_alterid: No company found - GUID: {guid}, AlterID: {alterid_str}")
+        
+        return result
     
     def get_guid_by_name_alterid(self, name: str, alterid: str) -> Optional[str]:
         """
@@ -159,25 +183,166 @@ class CompanyDAO:
         self._execute(query, (status, guid, alterid))
         return True
     
-    def update_sync_complete(self, guid: str, alterid: str, total_records: int) -> bool:
+    def update_sync_complete(self, guid: str, alterid: str, total_records: int, company_name: str = None, logger=None) -> bool:
         """
         Update company after sync completion.
+        If company doesn't exist, insert it.
+        
+        IMPORTANT: AlterID is unique per company in Tally.
+        - AlterID is the primary identifier for fetching data from Tally
+        - If company is altered in Tally, AlterID increments (101, 102, 103...)
+        - Same GUID + Different AlterID = New version of company (should insert new record)
+        - UNIQUE(guid, alterid) constraint allows same GUID with different AlterIDs
         
         Args:
             guid: Company GUID
-            alterid: Company AlterID
+            alterid: Company AlterID (unique identifier, increments when company altered)
             total_records: Total number of records synced
+            company_name: Company name (optional, used if company doesn't exist)
+            logger: Optional SyncLogger instance for logging
             
         Returns:
             True if successful
         """
-        query = """
-        UPDATE companies 
-        SET total_records=?, last_sync=?, status='synced' 
-        WHERE guid=? AND alterid=?
-        """
+        # CRITICAL: Ensure alterid is string for proper matching
+        alterid_str = str(alterid) if alterid is not None else ""
         last_sync = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self._execute(query, (total_records, last_sync, guid, alterid))
+        
+        # Check if company with this exact GUID+AlterID exists
+        existing = self.get_by_guid_alterid(guid, alterid_str)
+        
+        # CRITICAL: Double-verify the existing company matches
+        if existing:
+            existing_alterid_check = str(existing[3]) if len(existing) > 3 else ""
+            existing_guid_check = existing[2] if len(existing) > 2 else ""
+            if existing_guid_check != guid or existing_alterid_check != alterid_str:
+                print(f"[WARNING] get_by_guid_alterid returned wrong company! Expected GUID={guid}, AlterID={alterid_str}, Got GUID={existing_guid_check}, AlterID={existing_alterid_check}")
+                existing = None  # Force insert
+        
+        # Debug logging
+        print(f"[DEBUG] update_sync_complete: GUID={guid}, AlterID={alterid_str}, Existing={existing is not None}")
+        
+        if existing:
+            # Company with this exact GUID+AlterID exists - UPDATE it
+            existing_name = existing[1] if len(existing) > 1 else 'Unknown'
+            existing_records = existing[5] if len(existing) > 5 else 0
+            existing_alterid = str(existing[3]) if len(existing) > 3 else ""
+            
+            # Double-check AlterID matches
+            if existing_alterid != alterid_str:
+                print(f"[WARNING] AlterID mismatch! Existing: {existing_alterid}, New: {alterid_str}. Forcing insert.")
+                existing = None  # Force insert
+            else:
+                # UPDATE existing company
+                query = """
+                UPDATE companies 
+                SET total_records=?, last_sync=?, status='synced', name=?
+                WHERE guid=? AND alterid=?
+                """
+                try:
+                    cur = self._execute(query, (total_records, last_sync, company_name or existing_name, guid, alterid_str))
+                    rows_affected = cur.rowcount
+                    print(f"[DEBUG] UPDATE executed: rows_affected={rows_affected}")
+                    
+                    # CRITICAL: Force commit and verify
+                    self.db_conn.commit()
+                    
+                    # Verify update worked by querying again
+                    verify = self.get_by_guid_alterid(guid, alterid_str)
+                    if verify:
+                        verify_alterid = str(verify[3]) if len(verify) > 3 else ""
+                        if verify_alterid == alterid_str:
+                            print(f"[DEBUG] Company update verified: {verify[1] if len(verify) > 1 else 'Unknown'}")
+                            
+                            # Log the update
+                            if logger:
+                                try:
+                                    logger.info(
+                                        guid, alterid_str, company_name or existing_name,
+                                        f"Company updated in database: total_records={total_records}, status=synced",
+                                        details=f"Previous records: {existing_records}, New records: {total_records}",
+                                        sync_status='completed'
+                                    )
+                                except Exception as log_err:
+                                    print(f"[WARNING] Failed to log company update: {log_err}")
+                            return True
+                        else:
+                            print(f"[ERROR] Verification failed: AlterID mismatch! DB has {verify_alterid}, expected {alterid_str}")
+                            existing = None  # Force insert
+                    else:
+                        print(f"[ERROR] Company update FAILED - not found after update!")
+                        print(f"[DEBUG] GUID={guid}, AlterID={alterid_str}, Name={company_name or existing_name}")
+                        existing = None  # Force insert if update failed
+                except Exception as update_err:
+                    print(f"[ERROR] UPDATE query failed: {update_err}")
+                    import traceback
+                    traceback.print_exc()
+                    existing = None  # Force insert on error
+        else:
+            # Company with this GUID+AlterID doesn't exist - INSERT new record
+            # This handles:
+            # 1. New company (never synced before)
+            # 2. Company altered in Tally (new AlterID, same GUID)
+            name = company_name or f"Company {guid[:8]}"
+            
+            print(f"[DEBUG] Inserting new company: Name={name}, GUID={guid}, AlterID={alterid_str}, Records={total_records}")
+            
+            # Use INSERT (not INSERT OR REPLACE) because UNIQUE(guid, alterid) allows same GUID with different AlterID
+            query = """
+            INSERT INTO companies (name, guid, alterid, status, total_records, last_sync)
+            VALUES (?, ?, ?, 'synced', ?, ?)
+            """
+            try:
+                self._execute(query, (name, guid, alterid_str, total_records, last_sync))
+                
+                # Verify the insert worked
+                verify = self.get_by_guid_alterid(guid, alterid_str)
+                if verify:
+                    print(f"[DEBUG] ✅ Company insert verified: {verify[1] if len(verify) > 1 else 'Unknown'}")
+                else:
+                    print(f"[ERROR] ❌ Company insert failed - not found after insert!")
+                    print(f"[DEBUG] GUID={guid}, AlterID={alterid_str}, Name={name}")
+                    # Check if there's a constraint violation or other issue
+                    try:
+                        # Try to find by GUID only to see if there's a conflict
+                        query_check = "SELECT * FROM companies WHERE guid=?"
+                        cur = self._execute(query_check, (guid,))
+                        all_with_guid = cur.fetchall()
+                        if all_with_guid:
+                            print(f"[DEBUG] Found {len(all_with_guid)} companies with same GUID but different AlterIDs:")
+                            for comp in all_with_guid:
+                                print(f"  - {comp[1] if len(comp) > 1 else 'Unknown'} | AlterID: {comp[3] if len(comp) > 3 else 'Unknown'}")
+                    except Exception as check_err:
+                        print(f"[DEBUG] Error checking existing companies: {check_err}")
+                    raise Exception(f"Company insert failed - record not found after insert")
+                    
+            except sqlite3.IntegrityError as e:
+                # UNIQUE constraint violation - company already exists (shouldn't happen, but handle gracefully)
+                print(f"[WARNING] Company already exists (UNIQUE constraint): {e}")
+                # Try to update instead
+                query_update = """
+                UPDATE companies 
+                SET total_records=?, last_sync=?, status='synced', name=?
+                WHERE guid=? AND alterid=?
+                """
+                self._execute(query_update, (total_records, last_sync, name, guid, alterid_str))
+                print(f"[DEBUG] Updated existing company instead")
+            except Exception as e:
+                print(f"[ERROR] Failed to insert company: {e}")
+                print(f"[DEBUG] GUID={guid}, AlterID={alterid_str}, Name={name}")
+                import traceback
+                traceback.print_exc()
+                raise
+            
+            # Log the insert
+            if logger:
+                logger.info(
+                    guid, alterid_str, name,
+                    f"Company added to database: total_records={total_records}, status=synced",
+                    details=f"New company inserted: {name} (AlterID: {alterid_str})",
+                    sync_status='completed'
+                )
+        
         return True
     
     def mark_interrupted_syncs(self) -> int:

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sync Logs - TallyConnect</title>
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/layout.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/utilities.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <h1>📊 TallyConnect</h1>
+            <p>Report Portal</p>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a class="nav-link" href="companies.html">🏢 Companies</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="dashboard.html">📈 Dashboard</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="outstanding-report.html">📊 Outstanding</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="ledgers.html">📗 Ledger</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="sales-register.html">💰 Sales Register</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="sync-logs.html">📋 Sync Logs</a>
+            </li>
+        </ul>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="page active">
+            <h1 class="page-title">Sync Logs</h1>
+            
+            <!-- Filters -->
+            <div class="ledger-controls" style="margin-bottom: 20px;">
+                <div class="controls-row">
+                    <div class="search-container" style="flex: 1;">
+                        <select id="companyFilter" class="filter-select" style="width: 100%; padding: 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 14px;">
+                            <option value="">All Companies</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <select id="logLevelFilter" class="filter-select" style="padding: 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 14px;">
+                            <option value="">All Levels</option>
+                            <option value="INFO">Info</option>
+                            <option value="WARNING">Warning</option>
+                            <option value="ERROR">Error</option>
+                            <option value="SUCCESS">Success</option>
+                        </select>
+                        <select id="syncStatusFilter" class="filter-select" style="padding: 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 14px;">
+                            <option value="">All Status</option>
+                            <option value="started">Started</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                        <button class="btn-clear" onclick="clearFilters()">Clear Filters</button>
+                        <button class="btn-export" onclick="refreshLogs()">🔄 Refresh</button>
+                    </div>
+                </div>
+                <div class="data-context" id="logContext">
+                    <strong>Loading...</strong>
+                </div>
+            </div>
+            
+            <!-- Logs Table -->
+            <div style="background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #34495e; color: white;">
+                            <th style="padding: 12px; text-align: left; border: 1px solid #2c3e50;">Timestamp</th>
+                            <th style="padding: 12px; text-align: left; border: 1px solid #2c3e50;">Company</th>
+                            <th style="padding: 12px; text-align: center; border: 1px solid #2c3e50;">Level</th>
+                            <th style="padding: 12px; text-align: center; border: 1px solid #2c3e50;">Status</th>
+                            <th style="padding: 12px; text-align: left; border: 1px solid #2c3e50;">Message</th>
+                            <th style="padding: 12px; text-align: right; border: 1px solid #2c3e50;">Records</th>
+                            <th style="padding: 12px; text-align: right; border: 1px solid #2c3e50;">Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTableBody">
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 20px; color: #7f8c8d;">Loading logs...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="pagination" id="pagination" style="display: none; margin-top: 20px;"></div>
+        </div>
+    </div>
+    
+    <!-- JavaScript Files -->
+    <script src="assets/js/utils/helpers.js"></script>
+    <script src="assets/js/utils/export.js"></script>
+    <script src="assets/js/utils/filters.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/components/companies.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script>
+        // Global state
+        let currentCompany = null;
+        let currentLogLevel = '';
+        let currentSyncStatus = '';
+        let currentPage = 1;
+        let itemsPerPage = 50;
+        let totalLogs = 0;
+        let allCompanies = [];
+        
+        // Load companies for filter
+        function loadCompanies() {
+            fetch('api/companies.json')
+                .then(response => response.json())
+                .then(companies => {
+                    allCompanies = companies;
+                    const select = document.getElementById('companyFilter');
+                    select.innerHTML = '<option value="">All Companies</option>';
+                    companies.forEach(company => {
+                        const option = document.createElement('option');
+                        option.value = `${company.guid}|${company.alterid}`;
+                        option.textContent = company.name;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading companies:', error);
+                });
+        }
+        
+        // Load sync logs
+        function loadSyncLogs() {
+            const tbody = document.getElementById('logsTableBody');
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #7f8c8d;">Loading logs...</td></tr>';
+            
+            let apiUrl = 'api/sync-logs/?';
+            const params = [];
+            
+            if (currentCompany) {
+                const [guid, alterid] = currentCompany.split('|');
+                params.push(`company_guid=${encodeURIComponent(guid)}`);
+                params.push(`company_alterid=${encodeURIComponent(alterid)}`);
+            }
+            
+            if (currentLogLevel) {
+                params.push(`log_level=${currentLogLevel}`);
+            }
+            
+            if (currentSyncStatus) {
+                params.push(`sync_status=${currentSyncStatus}`);
+            }
+            
+            params.push(`limit=${itemsPerPage}`);
+            params.push(`offset=${(currentPage - 1) * itemsPerPage}`);
+            
+            apiUrl += params.join('&');
+            
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    totalLogs = data.total_count || 0;
+                    const logs = data.logs || [];
+                    renderLogs(logs);
+                    updateLogContext(data);
+                    renderPagination(data);
+                    
+                    // Debug logging
+                    console.log(`[Sync Logs] Loaded ${logs.length} logs (Total: ${totalLogs})`);
+                })
+                .catch(error => {
+                    console.error('Error loading sync logs:', error);
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: #e74c3c;">
+                        <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">Error loading logs</div>
+                        <div style="font-size: 12px; color: #7f8c8d;">${error.message}</div>
+                        <div style="font-size: 11px; color: #95a5a6; margin-top: 8px;">Please check server console for details</div>
+                    </td></tr>`;
+                });
+        }
+        
+        // Render logs table
+        function renderLogs(logs) {
+            const tbody = document.getElementById('logsTableBody');
+            tbody.innerHTML = '';
+            
+            if (logs.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #7f8c8d;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
+                            <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #34495e;">No Sync Logs Found</div>
+                            <div style="font-size: 14px; color: #95a5a6; margin-bottom: 16px;">
+                                Sync logs will appear here after you perform sync operations.
+                            </div>
+                            <div style="font-size: 12px; color: #bdc3c7;">
+                                To generate logs, sync a company in TallyConnect app.
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            logs.forEach(log => {
+                const levelColor = {
+                    'INFO': '#3498db',
+                    'WARNING': '#f39c12',
+                    'ERROR': '#e74c3c',
+                    'SUCCESS': '#27ae60'
+                }[log.log_level] || '#7f8c8d';
+                
+                const statusColor = {
+                    'started': '#3498db',
+                    'in_progress': '#f39c12',
+                    'completed': '#27ae60',
+                    'failed': '#e74c3c'
+                }[log.sync_status] || '#7f8c8d';
+                
+                const duration = log.duration_seconds ? `${log.duration_seconds.toFixed(2)}s` : '-';
+                const records = log.records_synced > 0 ? log.records_synced.toLocaleString() : '-';
+                
+                const row = document.createElement('tr');
+                row.style.borderBottom = '1px solid #ecf0f1';
+                row.innerHTML = `
+                    <td style="padding: 10px; font-size: 12px; color: #7f8c8d;">${formatDateTime(log.created_at)}</td>
+                    <td style="padding: 10px; font-weight: 600;">${log.company_name || '-'}</td>
+                    <td style="padding: 10px; text-align: center;">
+                        <span style="padding: 4px 8px; border-radius: 4px; background: ${levelColor}; color: white; font-size: 11px; font-weight: 600;">
+                            ${log.log_level || '-'}
+                        </span>
+                    </td>
+                    <td style="padding: 10px; text-align: center;">
+                        ${log.sync_status ? `<span style="padding: 4px 8px; border-radius: 4px; background: ${statusColor}; color: white; font-size: 11px; font-weight: 600;">${log.sync_status}</span>` : '-'}
+                    </td>
+                    <td style="padding: 10px;">
+                        <div style="font-weight: 600; margin-bottom: 4px;">${log.log_message || '-'}</div>
+                        ${log.log_details ? `<div style="font-size: 11px; color: #7f8c8d;">${log.log_details}</div>` : ''}
+                        ${log.error_message ? `<div style="font-size: 11px; color: #e74c3c; margin-top: 4px;">Error: ${log.error_message}</div>` : ''}
+                    </td>
+                    <td style="padding: 10px; text-align: right; color: #3498db; font-weight: 600;">${records}</td>
+                    <td style="padding: 10px; text-align: right; color: #7f8c8d;">${duration}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // Format date time
+        function formatDateTime(dateStr) {
+            if (!dateStr) return '-';
+            try {
+                const date = new Date(dateStr);
+                return date.toLocaleString('en-IN', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+            } catch (e) {
+                return dateStr;
+            }
+        }
+        
+        // Update log context
+        function updateLogContext(data) {
+            const context = document.getElementById('logContext');
+            const total = data.total_count || 0;
+            const showing = data.logs ? data.logs.length : 0;
+            const startIndex = (currentPage - 1) * itemsPerPage + 1;
+            const endIndex = Math.min(currentPage * itemsPerPage, total);
+            
+            let text = `<strong>${showing}</strong> of <strong>${total}</strong> logs`;
+            if (currentCompany) {
+                const company = allCompanies.find(c => `${c.guid}|${c.alterid}` === currentCompany);
+                if (company) {
+                    text += ` for <strong>${company.name}</strong>`;
+                }
+            }
+            if (currentLogLevel) {
+                text += ` | Level: <strong>${currentLogLevel}</strong>`;
+            }
+            if (currentSyncStatus) {
+                text += ` | Status: <strong>${currentSyncStatus}</strong>`;
+            }
+            if (total > 0) {
+                text += ` | Showing <strong>${startIndex}-${endIndex}</strong> on page <strong>${currentPage}</strong>`;
+            }
+            
+            context.innerHTML = text;
+        }
+        
+        // Render pagination
+        function renderPagination(data) {
+            const pagination = document.getElementById('pagination');
+            const totalPages = Math.ceil((data.total_count || 0) / itemsPerPage);
+            
+            if (totalPages <= 1) {
+                pagination.style.display = 'none';
+                return;
+            }
+            
+            pagination.style.display = 'flex';
+            pagination.innerHTML = '';
+            
+            // Previous button
+            const prevBtn = document.createElement('button');
+            prevBtn.textContent = '← Previous';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    loadSyncLogs();
+                }
+            };
+            pagination.appendChild(prevBtn);
+            
+            // Page numbers
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.textContent = i;
+                pageBtn.className = i === currentPage ? 'active' : '';
+                pageBtn.onclick = () => {
+                    currentPage = i;
+                    loadSyncLogs();
+                };
+                pagination.appendChild(pageBtn);
+            }
+            
+            // Next button
+            const nextBtn = document.createElement('button');
+            nextBtn.textContent = 'Next →';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    loadSyncLogs();
+                }
+            };
+            pagination.appendChild(nextBtn);
+        }
+        
+        // Clear filters
+        function clearFilters() {
+            currentCompany = null;
+            currentLogLevel = '';
+            currentSyncStatus = '';
+            currentPage = 1;
+            
+            document.getElementById('companyFilter').value = '';
+            document.getElementById('logLevelFilter').value = '';
+            document.getElementById('syncStatusFilter').value = '';
+            
+            loadSyncLogs();
+        }
+        
+        // Refresh logs
+        function refreshLogs() {
+            loadSyncLogs();
+        }
+        
+        // Initialize on page load
+        window.addEventListener('load', function() {
+            loadCompanies();
+            loadSyncLogs();
+            
+            // Add event listeners
+            document.getElementById('companyFilter').addEventListener('change', function() {
+                currentCompany = this.value || null;
+                currentPage = 1;
+                loadSyncLogs();
+            });
+            
+            document.getElementById('logLevelFilter').addEventListener('change', function() {
+                currentLogLevel = this.value || '';
+                currentPage = 1;
+                loadSyncLogs();
+            });
+            
+            document.getElementById('syncStatusFilter').addEventListener('change', function() {
+                currentSyncStatus = this.value || '';
+                currentPage = 1;
+                loadSyncLogs();
+            });
+        });
+    </script>
+</body>
+</html>
+

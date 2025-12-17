@@ -43,6 +43,7 @@ from backend.database.company_dao import CompanyDAO
 
 # ---------- Utilities ----------
 from backend.utils.error_handler import get_user_friendly_error
+from backend.utils.sync_logger import get_sync_logger
 
 def try_connect_dsn(dsn_name, timeout=5):
     """Try to connect to Tally DSN."""
@@ -261,11 +262,29 @@ class BizAnalystApp:
         date_row.pack(fill=tk.X, padx=10, pady=6)
         tk.Label(date_row, text="Date Range:", bg="white", font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT)
         tk.Label(date_row, text="From:", bg="white").pack(side=tk.LEFT, padx=(16, 4))
-        self.from_var = tk.StringVar(value="01-01-2024")
+        
+        # Calculate current financial year (April 1 to March 31)
+        now = datetime.now()
+        current_year = now.year
+        current_month = now.month
+        
+        # Financial year: April to March
+        # If current month is April or later, FY starts this year
+        # If current month is Jan-Mar, FY started last year
+        if current_month >= 4:
+            # FY 2025-26: 01-04-2025 to 31-03-2026
+            fy_start_date = f"01-04-{current_year}"
+            fy_end_date = f"31-03-{current_year + 1}"
+        else:
+            # FY 2024-25: 01-04-2024 to 31-03-2025
+            fy_start_date = f"01-04-{current_year - 1}"
+            fy_end_date = f"31-03-{current_year}"
+        
+        self.from_var = tk.StringVar(value=fy_start_date)
         self.entry_from = ttk.Entry(date_row, textvariable=self.from_var, width=15)
         self.entry_from.pack(side=tk.LEFT, padx=4)
         tk.Label(date_row, text="To:", bg="white").pack(side=tk.LEFT, padx=(12, 4))
-        self.to_var = tk.StringVar(value=datetime.now().strftime("%d-%m-%Y"))
+        self.to_var = tk.StringVar(value=fy_end_date)
         self.entry_to = ttk.Entry(date_row, textvariable=self.to_var, width=15)
         self.entry_to.pack(side=tk.LEFT, padx=4)
         
@@ -1083,7 +1102,9 @@ Keyboard Shortcuts:
             return
 
         # Use CompanyDAO for insert/update
-        self.company_dao.insert_or_update(name, guid, alterid, dsn, 'syncing')
+        # CRITICAL: Convert alterid to string to ensure proper matching
+        alterid_str = str(alterid) if alterid is not None else ""
+        self.company_dao.insert_or_update(name, guid, alterid_str, dsn, 'syncing')
         
         # Show and reset progress indicators
         self._update_progress(0)
@@ -1096,7 +1117,7 @@ Keyboard Shortcuts:
         except:
             pass
         
-        t = threading.Thread(target=self._sync_worker, args=(name, guid, alterid, dsn, from_date, to_date, lock), daemon=True)
+        t = threading.Thread(target=self._sync_worker, args=(name, guid, alterid_str, dsn, from_date, to_date, lock), daemon=True)
         self.sync_threads[key] = t
         self.btn_sync.config(state=tk.DISABLED)
         t.start()
@@ -1110,15 +1131,41 @@ Keyboard Shortcuts:
         batch_count = 0
         estimated_batches = 0  # We'll estimate based on date range
         
+        # Initialize sync logger (with error handling to prevent hang)
+        sync_logger = None
+        try:
+            sync_logger = get_sync_logger(db_path=DB_FILE, db_lock=self.db_lock)
+        except Exception as logger_err:
+            print(f"[WARNING] Failed to initialize sync logger: {logger_err}")
+            sync_logger = None
+        
+        sync_start_time = time.time()
+        
+        # Log sync start (non-blocking, after connection to avoid blocking)
+        # CRITICAL: Convert alterid to string for logging
+        alterid_str_log = str(alterid) if alterid is not None else ""
+        if sync_logger:
+            try:
+                sync_logger.sync_started(guid, alterid_str_log, name, details=f"Date range: {from_date} to {to_date}")
+                print(f"[DEBUG] Sync start logged successfully")
+            except Exception as log_err:
+                print(f"[WARNING] Failed to log sync start: {log_err}")
+                import traceback
+                traceback.print_exc()
+        
         try:
             try:
-                conn = pyodbc.connect(f"DSN={dsn};", timeout=30)
+                self.log(f"[{name}] 🔌 Connecting to Tally...")
+                # Increase connection timeout for large queries
+                conn = pyodbc.connect(f"DSN={dsn};", timeout=60)
+                self.log(f"[{name}] ✅ Connected to Tally successfully")
             except Exception as conn_error:
                 error_msg = get_user_friendly_error(str(conn_error))
                 self.log(f"❌ Connection error for {name}: {conn_error}")
                 messagebox.showerror("Tally Connection Error", f"Cannot connect to Tally for {name}:\n\n{error_msg}")
                 raise
             cur = conn.cursor()
+            self.log(f"[{name}] ✅ Cursor created, ready to execute queries")
 
             try:
                 batch_size = int(self.batch_size_var.get())
@@ -1135,31 +1182,157 @@ Keyboard Shortcuts:
             except Exception:
                 use_slicing = False
                 slice_days = 7
+            
+            # Auto-enable slicing for large date ranges (>365 days) to prevent hangs
+            try:
+                from_dt = datetime.strptime(from_date, "%d-%m-%Y")
+                to_dt = datetime.strptime(to_date, "%d-%m-%Y")
+                # Calculate total days: (end_date - start_date).days + 1
+                # +1 because we include both start and end dates
+                # Example: 01-01-2024 to 03-01-2024 = 3 days (01, 02, 03)
+                total_days = (to_dt - from_dt).days + 1
+                if total_days > 365 and not use_slicing:
+                    self.log(f"[{name}] ⚠️ Large date range detected ({total_days} days from {from_date} to {to_date}). Auto-enabling date slicing to prevent hangs...")
+                    use_slicing = True
+                    # Optimize slice size based on range (based on performance test results):
+                    # - >2 years: Use financial year slices (365 days) - Best for large ranges
+                    # - 1-2 years: Use monthly slices (30 days) - Best progress tracking
+                    # - <1 year: Use 30-day slices
+                    if total_days > 730:  # More than 2 years
+                        slice_days = 365  # Financial year slices (fastest per query)
+                        self.log(f"[{name}] 📅 Using financial year slices (365 days) for optimal performance")
+                    elif total_days > 365:  # 1-2 years
+                        slice_days = 30  # Monthly slices (best progress)
+                        self.log(f"[{name}] 📅 Using monthly slices (30 days) for better progress tracking")
+                    else:
+                        slice_days = min(30, max(7, total_days // 12))  # Divide into ~12 chunks
+                        self.log(f"[{name}] 📅 Using {slice_days}-day slices for faster sync")
+            except Exception as e:
+                self.log(f"[{name}] ⚠️ Error calculating date range: {e}")
+                pass  # If date parsing fails, continue with original settings
 
             def _execute_window(f_d, t_d):
                 nonlocal approx_inserted, batch_count, estimated_batches
                 
-                q = VOUCHER_QUERY_TEMPLATE.format(guid=guid, from_date=f_d, to_date=t_d)
-                self.log(f"[{name}] 📤 Query: {f_d} → {t_d}")
+                # Calculate date range in days
                 try:
+                    from_dt = datetime.strptime(f_d, "%d-%m-%Y")
+                    to_dt = datetime.strptime(t_d, "%d-%m-%Y")
+                    days_diff = (to_dt - from_dt).days + 1
+                except:
+                    days_diff = 0
+                
+                q = VOUCHER_QUERY_TEMPLATE.format(guid=guid, from_date=f_d, to_date=t_d)
+                self.log(f"[{name}] 📤 Query: {f_d} → {t_d} ({days_diff} days)")
+                
+                # Warn if date range is very large
+                if days_diff > 365:
+                    self.log(f"[{name}] ⚠️ WARNING: Large date range ({days_diff} days). This may take 2-5 minutes. Consider using 'Slice by Days' for faster sync.")
+                
+                self.log(f"[{name}] ⏳ Executing query... (Please wait, Tally is processing data)")
+                
+                query_start_time = time.time()
+                last_log_time = query_start_time
+                try:
+                    # Execute query - this may take time for large date ranges
+                    # Note: We can't add timeout here as pyodbc doesn't support query timeout
+                    # The query will complete when Tally finishes processing
                     cur.execute(q)
+                    query_duration = time.time() - query_start_time
+                    self.log(f"[{name}] ✅ Query executed in {query_duration:.1f} seconds, fetching results...")
                 except Exception as exq:
-                    self.log(f"[{name}] ❌ Query error: {exq}")
-                    return
+                    error_msg = str(exq)
+                    query_duration = time.time() - query_start_time
+                    self.log(f"[{name}] ❌ Query error after {query_duration:.1f} seconds: {error_msg}")
+                    # Log error to sync logger if available
+                    if sync_logger:
+                        try:
+                            sync_logger.error(guid, alterid_str_log, name, 
+                                            f"Query execution failed for date range {f_d} to {t_d}: {error_msg}",
+                                            error_code="QUERY_ERROR",
+                                            error_message=error_msg)
+                        except:
+                            pass
+                    # Re-raise to be caught by outer exception handler
+                    raise Exception(f"Query execution failed: {error_msg}")
 
                 batch_no = 0
+                fetch_start_time = time.time()
+                self.log(f"[{name}] 📥 Starting to fetch results in batches of {batch_size}...")
+                self.log(f"[{name}] ⚠️ NOTE: First batch fetch may take 2-5 minutes for large queries. Please wait...")
+                
+                # Use smaller batch size for first fetch to reduce initial wait time
+                first_batch_size = min(50, batch_size)
+                
                 while True:
-                    rows = cur.fetchmany(batch_size)
-                    if not rows:
-                        break
+                    # Add timeout protection and progress logging for fetchmany
+                    fetch_batch_start = time.time()
+                    current_batch_size = first_batch_size if batch_no == 0 else batch_size
+                    
+                    try:
+                        if batch_no == 0:
+                            self.log(f"[{name}] ⏳ Fetching first batch ({current_batch_size} rows)...")
+                            self.log(f"[{name}] ⚠️ IMPORTANT: First fetch may take 2-5 minutes for large queries. Tally is processing data. Please DO NOT close the app.")
+                        else:
+                            self.log(f"[{name}] ⏳ Fetching batch {batch_no + 1} ({current_batch_size} rows)...")
+                        
+                        # Note: fetchmany() is blocking - we cannot interrupt it
+                        # Tally will return results when ready, which may take several minutes
+                        rows = cur.fetchmany(current_batch_size)
+                        fetch_duration = time.time() - fetch_batch_start
+                        
+                        if not rows:
+                            total_fetch_time = time.time() - fetch_start_time
+                            self.log(f"[{name}] ✅ Finished fetching all results in {total_fetch_time:.1f} seconds")
+                            break
+                        
+                        self.log(f"[{name}] ✅ Fetched batch {batch_no + 1}: {len(rows)} rows (took {fetch_duration:.1f}s)")
+                    except Exception as fetch_err:
+                        fetch_duration = time.time() - fetch_batch_start
+                        error_msg = str(fetch_err)
+                        self.log(f"[{name}] ❌ Error fetching batch {batch_no + 1} after {fetch_duration:.1f}s: {error_msg}")
+                        if sync_logger:
+                            try:
+                                sync_logger.error(guid, alterid_str_log, name,
+                                                f"Error fetching batch {batch_no + 1}: {error_msg}",
+                                                error_code="FETCH_ERROR",
+                                                error_message=error_msg)
+                            except:
+                                pass
+                        raise Exception(f"Failed to fetch batch {batch_no + 1}: {error_msg}")
+                    
                     batch_no += 1
                     batch_count += 1
                     params = []
                     
                     # FIXED: params list built inside row loop
+                    # CRITICAL: Filter rows to only include those matching the target AlterID
+                    # Tally query returns vouchers for ALL AlterIDs with the same GUID
+                    # We need to only process rows where the AlterID from Tally matches our target
+                    alterid_str_target = str(alterid) if alterid is not None else ""
                     for r in rows:
                         try:
-                            vch_date = str(r[3]) if len(r) > 3 else None
+                            # Extract AlterID from Tally result (column index 2: $OnwerAlterID)
+                            tally_alterid = r[2] if len(r) > 2 else None
+                            tally_alterid_str = str(tally_alterid) if tally_alterid is not None else ""
+                            
+                            # Skip rows that don't match our target AlterID
+                            if tally_alterid_str != alterid_str_target:
+                                continue  # Skip this row - it belongs to a different AlterID
+                            
+                            # Extract date - handle None, empty string, and format conversion
+                            vch_date_raw = r[3] if len(r) > 3 else None
+                            if vch_date_raw is None or vch_date_raw == '':
+                                vch_date = None
+                            else:
+                                # Convert to string and ensure proper format
+                                vch_date = str(vch_date_raw).strip()
+                                if vch_date == '' or vch_date.lower() == 'none':
+                                    vch_date = None
+                            
+                            # Debug first row date extraction
+                            if batch_count == 1 and len(params) == 0:
+                                print(f"[DEBUG] First row date extraction: raw={repr(vch_date_raw)}, final={repr(vch_date)}, row_len={len(r)}")
                             vch_type = str(r[4]) if len(r) > 4 else None
                             vch_no = str(r[5]) if len(r) > 5 else None
                             led_name = str(r[6]) if len(r) > 6 else None
@@ -1185,8 +1358,10 @@ Keyboard Shortcuts:
                             self.log(f"[{name}] Row parse error: {ex_row}")
                             continue
 
+                        # CRITICAL: Convert alterid to string for consistent storage
+                        alterid_str_insert = str(alterid) if alterid is not None else ""
                         params.append((
-                            guid, alterid, name, vch_date, vch_type, vch_no, vch_mst_id,
+                            guid, alterid_str_insert, name, vch_date, vch_type, vch_no, vch_mst_id,
                             led_name, led_amount, vch_dr_cr, vch_dr_amt, vch_cr_amt, vch_party_name, vch_led_parent,
                             vch_narration, vch_gstin, vch_led_gstin, vch_led_bill_ref, vch_led_bill_type,
                             vch_led_primary_grp, vch_led_nature, vch_led_bs_grp, vch_led_bs_grp_nature,
@@ -1194,27 +1369,218 @@ Keyboard Shortcuts:
                         ))
                     
                     # OPTIMIZED: SQLite bulk insert with PRAGMA settings
+                    # CRITICAL: Keep lock time minimal to prevent UI freeze
                     if params:
-                        with self.db_lock:
-                            db_cur = self.db_conn.cursor()
+                        insert_start = time.time()
+                        print(f"[DEBUG] Preparing to insert batch {batch_count}: {len(params)} rows, AlterID={alterid_str_insert}")
+                        
+                        # DEBUG: Check first param to verify AlterID format
+                        if params and batch_count == 1:
+                            first_param = params[0]
+                            print(f"[DEBUG] First param AlterID: {repr(first_param[1])} (type: {type(first_param[1]).__name__})")
+                            print(f"[DEBUG] First param GUID: {repr(first_param[0])}")
+                            print(f"[DEBUG] First param vch_mst_id: {repr(first_param[6])}")
+                            print(f"[DEBUG] First param led_name: {repr(first_param[7])}")
+                        
+                        try:
+                            # Acquire lock with timeout to prevent deadlock
+                            lock_acquired = False
+                            try:
+                                lock_acquired = self.db_lock.acquire(timeout=1.0)  # 1 second timeout
+                                if not lock_acquired:
+                                    self.log(f"[{name}] ⚠️ Database lock timeout, retrying...")
+                                    time.sleep(0.1)
+                                    lock_acquired = self.db_lock.acquire(timeout=5.0)  # Retry with longer timeout
+                                
+                                if lock_acquired:
+                                    db_cur = self.db_conn.cursor()
+                                    
+                                    # CRITICAL: PRAGMA commands must be executed BEFORE starting a transaction
+                                    # SQLite doesn't allow PRAGMA changes inside a transaction
+                                    # Apply PRAGMA settings only once, before any inserts, and commit first
+                                    if batch_no == 1:
+                                        # Commit any existing transaction first to ensure we're outside a transaction
+                                        self.db_conn.commit()
+                                        # Now apply PRAGMA settings (outside transaction)
+                                        db_cur.execute("PRAGMA synchronous = NORMAL")  # Changed from OFF to NORMAL for stability
+                                        db_cur.execute("PRAGMA temp_store = MEMORY")
+                                        db_cur.execute("PRAGMA cache_size = 10000")
+                                        # Removed WAL mode - can cause issues on some systems
+                                        # Commit PRAGMA changes (though PRAGMA changes are immediate, this ensures clean state)
+                                        self.db_conn.commit()
+                                        print(f"[DEBUG] PRAGMA settings applied for batch 1 (outside transaction)")
+                                    
+                                    # Use INSERT OR REPLACE to handle duplicates
+                                    # This ensures vouchers are inserted even if there are duplicates
+                                    try:
+                                        print(f"[DEBUG] Executing INSERT for {len(params)} rows...")
+                                        # Use INSERT with error handling instead of INSERT OR IGNORE
+                                        # INSERT OR IGNORE silently ignores ALL duplicates, which can hide issues
+                                        # UNIQUE constraint: (company_guid, company_alterid, vch_mst_id, led_name)
+                                        try:
+                                            db_cur.executemany("""
+                                            INSERT INTO vouchers
+                                        (company_guid, company_alterid, company_name, vch_date, vch_type, vch_no, vch_mst_id,
+                                         led_name, led_amount, vch_dr_cr, vch_dr_amt, vch_cr_amt, vch_party_name, vch_led_parent,
+                                         vch_narration, vch_gstin, vch_led_gstin, vch_led_bill_ref, vch_led_bill_type,
+                                         vch_led_primary_grp, vch_led_nature, vch_led_bs_grp, vch_led_bs_grp_nature,
+                                         vch_is_optional, vch_led_bill_count)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                        """, params)
+                                        except sqlite3.IntegrityError as integrity_err:
+                                            # UNIQUE constraint violation - some rows are duplicates
+                                            # SQLite's INSERT OR REPLACE only works with PRIMARY KEY, not UNIQUE constraints
+                                            # So we need to use INSERT OR IGNORE, but this means duplicates are silently ignored
+                                            # For now, we'll use INSERT OR IGNORE and log a warning
+                                            print(f"[WARNING] Integrity error (duplicates): {integrity_err}")
+                                            print(f"[DEBUG] Using INSERT OR IGNORE for {len(params)} rows (duplicates will be ignored)...")
+                                            db_cur.executemany("""
+                                            INSERT OR IGNORE INTO vouchers
+                                            (company_guid, company_alterid, company_name, vch_date, vch_type, vch_no, vch_mst_id,
+                                             led_name, led_amount, vch_dr_cr, vch_dr_amt, vch_cr_amt, vch_party_name, vch_led_parent,
+                                             vch_narration, vch_gstin, vch_led_gstin, vch_led_bill_ref, vch_led_bill_type,
+                                             vch_led_primary_grp, vch_led_nature, vch_led_bs_grp, vch_led_bs_grp_nature,
+                                             vch_is_optional, vch_led_bill_count)
+                                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                            """, params)
+                                        
+                                        print(f"[DEBUG] INSERT executed, committing...")
+                                        # Commit every batch
+                                        self.db_conn.commit()
+                                        rows_inserted = len(params)
+                                        print(f"[DEBUG] Committed {rows_inserted} rows")
+                                        
+                                        # Debug: Verify inserts for first batch
+                                        if batch_count == 1:
+                                            # Force commit and verify with fresh cursor
+                                            # CRITICAL: Use a NEW connection to verify, not the same one
+                                            # This ensures we're reading from disk, not from uncommitted transaction cache
+                                            # Use the same database path as the main connection (self.db_conn)
+                                            # CRITICAL: We need the absolute path to the actual database file
+                                            # Method 1: Try PRAGMA database_list first
+                                            import os
+                                            from backend.config.settings import DB_FILE
+                                            main_db_path = None
+                                            
+                                            try:
+                                                verify_cur_temp = self.db_conn.cursor()
+                                                verify_cur_temp.execute("PRAGMA database_list")
+                                                db_list = verify_cur_temp.fetchall()
+                                                verify_cur_temp.close()
+                                                
+                                                # PRAGMA database_list returns: (seq, name, file)
+                                                # The main database is usually the first one with name='main'
+                                                for db_entry in db_list:
+                                                    if len(db_entry) >= 3 and db_entry[1] == 'main':
+                                                        db_file = db_entry[2]
+                                                        # If PRAGMA returns a path, make it absolute
+                                                        if db_file and db_file != '':
+                                                            # If it's already absolute, use it; otherwise resolve it
+                                                            if os.path.isabs(db_file):
+                                                                main_db_path = db_file
+                                                            else:
+                                                                # Relative path - resolve from current working directory
+                                                                main_db_path = os.path.abspath(db_file)
+                                                            break
+                                            except Exception as pragma_err:
+                                                print(f"[DEBUG] PRAGMA database_list failed: {pragma_err}")
+                                            
+                                            # Fallback: Use DB_FILE from project root (same as init_db uses)
+                                            if not main_db_path or main_db_path == '' or not os.path.exists(main_db_path):
+                                                # Get project root (where main.py is located)
+                                                # This file is in backend/app.py, so go up two levels
+                                                current_file = os.path.abspath(__file__)
+                                                project_root = os.path.dirname(os.path.dirname(current_file))
+                                                main_db_path = os.path.join(project_root, DB_FILE)
+                                                # Ensure it's absolute
+                                                main_db_path = os.path.abspath(main_db_path)
+                                            
+                                            verify_conn = sqlite3.connect(main_db_path, check_same_thread=False)
+                                            verify_cur = verify_conn.cursor()
+                                            print(f"[DEBUG] Verification using database: {main_db_path}")
+                                            print(f"[DEBUG] Database file exists: {os.path.exists(main_db_path)}")
+                                            print(f"[DEBUG] Database file size: {os.path.getsize(main_db_path) if os.path.exists(main_db_path) else 0} bytes")
+                                            
+                                            # Try multiple query formats to find the issue
+                                            print(f"[DEBUG] Verifying insert with AlterID: '{alterid_str_insert}' (type: {type(alterid_str_insert).__name__})")
+                                            
+                                            # Query 1: Exact match
+                                            verify_cur.execute("SELECT COUNT(*) FROM vouchers WHERE company_guid=? AND company_alterid=?", 
+                                                              (guid, alterid_str_insert))
+                                            verify_count = verify_cur.fetchone()[0]
+                                            
+                                            # Query 2: Cast to string
+                                            verify_cur.execute("SELECT COUNT(*) FROM vouchers WHERE company_guid=? AND CAST(company_alterid AS TEXT)=?", 
+                                                              (guid, alterid_str_insert))
+                                            verify_count2 = verify_cur.fetchone()[0]
+                                            
+                                            # Query 3: Total for this GUID
+                                            verify_cur.execute("SELECT COUNT(*) FROM vouchers WHERE company_guid=?", (guid,))
+                                            total_for_guid = verify_cur.fetchone()[0]
+                                            
+                                            # Query 4: Check what AlterIDs actually exist for this GUID
+                                            verify_cur.execute("SELECT DISTINCT company_alterid, COUNT(*) FROM vouchers WHERE company_guid=? GROUP BY company_alterid", (guid,))
+                                            existing_alterids = verify_cur.fetchall()
+                                            
+                                            print(f"[DEBUG] ✅ After batch 1: Inserted {rows_inserted} rows")
+                                            print(f"[DEBUG]   Query 1 (exact): {verify_count} vouchers for AlterID '{alterid_str_insert}'")
+                                            print(f"[DEBUG]   Query 2 (CAST): {verify_count2} vouchers for AlterID '{alterid_str_insert}'")
+                                            print(f"[DEBUG]   Total vouchers for GUID: {total_for_guid}")
+                                            print(f"[DEBUG]   Existing AlterIDs for this GUID:")
+                                            for alt_id, cnt in existing_alterids:
+                                                print(f"      - AlterID '{alt_id}' (type: {type(alt_id).__name__}): {cnt} vouchers")
+                                                if str(alt_id) == alterid_str_insert:
+                                                    print(f"        ✅ MATCHES inserted AlterID!")
+                                                else:
+                                                    print(f"        ❌ Does NOT match inserted AlterID '{alterid_str_insert}'")
+                                            
+                                            if verify_count == 0 and verify_count2 == 0:
+                                                print(f"[ERROR] ❌ CRITICAL: No vouchers found after insert! GUID={guid}, AlterID={alterid_str_insert}")
+                                                # Check what's in the first param
+                                                if params:
+                                                    first_param = params[0]
+                                                    print(f"[DEBUG] First param: GUID={first_param[0]}, AlterID={first_param[1]} (type: {type(first_param[1]).__name__})")
+                                                # Check all AlterIDs in database
+                                                verify_cur.execute("SELECT DISTINCT company_alterid, COUNT(*) FROM vouchers WHERE company_guid=? GROUP BY company_alterid", (guid,))
+                                                all_alterids = verify_cur.fetchall()
+                                                print(f"[DEBUG] All AlterIDs in DB for this GUID:")
+                                                for a in all_alterids:
+                                                    print(f"  - '{a[0]}' (type: {type(a[0]).__name__}, repr: {repr(a[0])}) | Count: {a[1]}")
+                                            verify_cur.close()
+                                            verify_conn.close()
+                                    except Exception as insert_err:
+                                        print(f"[ERROR] ❌ Voucher insert failed: {insert_err}")
+                                        import traceback
+                                        traceback.print_exc()
+                                        raise
+                                    approx_inserted += rows_inserted
+                                else:
+                                    raise Exception("Failed to acquire database lock")
+                            finally:
+                                if lock_acquired:
+                                    self.db_lock.release()
                             
-                            # Enable faster inserts (only once per sync)
-                            if batch_no == 1:
-                                db_cur.execute("PRAGMA synchronous = NORMAL")
-                                db_cur.execute("PRAGMA temp_store = MEMORY")
-                                db_cur.execute("PRAGMA cache_size = 10000")
+                            insert_duration = time.time() - insert_start
                             
-                            db_cur.executemany("""
-                            INSERT OR IGNORE INTO vouchers
-                            (company_guid, company_alterid, company_name, vch_date, vch_type, vch_no, vch_mst_id,
-                             led_name, led_amount, vch_dr_cr, vch_dr_amt, vch_cr_amt, vch_party_name, vch_led_parent,
-                             vch_narration, vch_gstin, vch_led_gstin, vch_led_bill_ref, vch_led_bill_type,
-                             vch_led_primary_grp, vch_led_nature, vch_led_bs_grp, vch_led_bs_grp_nature,
-                             vch_is_optional, vch_led_bill_count)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            """, params)
-                            self.db_conn.commit()
-                            approx_inserted += len(params)
+                            # Log insertion progress (non-blocking)
+                            if batch_count % 10 == 0 or batch_count == 1:
+                                self.log(f"[{name}] 💾 Inserted batch {batch_count}: {rows_inserted} rows in {insert_duration:.2f}s (Total: {approx_inserted:,})")
+                            
+                            if sync_logger and (batch_count % 10 == 0 or batch_count == 1):
+                                try:
+                                    sync_logger.sync_progress(
+                                        guid, alterid_str_log, name, 
+                                        records_synced=approx_inserted,
+                                        message=f"Batch {batch_count}: {rows_inserted} vouchers inserted",
+                                        details=f"Total inserted so far: {approx_inserted} vouchers"
+                                    )
+                                except Exception as log_err:
+                                    print(f"[WARNING] Failed to log progress: {log_err}")
+                        except Exception as insert_err:
+                            insert_duration = time.time() - insert_start
+                            self.log(f"[{name}] ❌ Database insert error after {insert_duration:.2f}s: {insert_err}")
+                            # Don't raise - continue with next batch to prevent complete failure
+                            self.log(f"[{name}] ⚠️ Skipping batch {batch_count} due to insert error, continuing...")
 
                     # SIMULATED PROGRESS (no COUNT needed)
                     estimated_batches = max(estimated_batches, batch_count + 5)
@@ -1234,7 +1600,16 @@ Keyboard Shortcuts:
                         pass
 
                     self.log(f"[{name}] Batch {batch_no}: {len(params)} rows (≈{approx_inserted} total)")
-                    time.sleep(0.01)
+                    
+                    # CRITICAL: Allow UI to update and prevent "Not Responding"
+                    # Small sleep allows other threads (including UI) to run
+                    time.sleep(0.05)  # Increased from 0.01 to 0.05 for better UI responsiveness
+                    
+                    # Force UI update to prevent "Not Responding" status
+                    try:
+                        self.root.update_idletasks()  # Process pending UI events
+                    except:
+                        pass  # Ignore if root is destroyed
 
             # Process date windows
             if use_slicing:
@@ -1261,7 +1636,20 @@ Keyboard Shortcuts:
                             cur_end = to_dt
                         f_d = cur_start.strftime("%d-%m-%Y")
                         t_d = cur_end.strftime("%d-%m-%Y")
-                        _execute_window(f_d, t_d)
+                        try:
+                            _execute_window(f_d, t_d)
+                        except Exception as window_err:
+                            # If one window fails, log and continue to next window
+                            self.log(f"[{name}] ⚠️ Window {f_d} to {t_d} failed: {window_err}")
+                            if sync_logger:
+                                try:
+                                    sync_logger.warning(guid, alterid_str_log, name,
+                                                       f"Date window sync failed: {f_d} to {t_d}",
+                                                       details=str(window_err),
+                                                       sync_status='in_progress')
+                                except:
+                                    pass
+                            # Continue to next window instead of failing entire sync
                         cur_start = cur_end + timedelta(days=1)
                 else:
                     _execute_window(from_date, to_date)
@@ -1278,10 +1666,80 @@ Keyboard Shortcuts:
             with self.db_lock:
                 db_cur = self.db_conn.cursor()
                 db_cur.execute("PRAGMA synchronous = FULL")
-            self.company_dao.update_sync_complete(guid, alterid, approx_inserted)
+            
+            # Verify actual vouchers inserted
+            # CRITICAL: Use string alterid for verification to match insert format
+            alterid_str_verify = str(alterid) if alterid is not None else ""
+            db_cur.execute("SELECT COUNT(*) as count FROM vouchers WHERE company_guid = ? AND company_alterid = ?", 
+                         (guid, alterid_str_verify))
+            actual_vouchers = db_cur.fetchone()[0]
+            
+            # Log voucher count verification (non-blocking)
+            if sync_logger:
+                try:
+                    if actual_vouchers != approx_inserted:
+                        sync_logger.warning(
+                            guid, alterid_str_log, name,
+                            f"Voucher count mismatch: Expected {approx_inserted}, Actual in DB: {actual_vouchers}",
+                            details=f"Sync reported {approx_inserted} vouchers but database has {actual_vouchers} vouchers",
+                            sync_status='completed'
+                        )
+                    else:
+                        sync_logger.info(
+                            guid, alterid_str_log, name,
+                            f"Voucher insertion verified: {actual_vouchers} vouchers in database",
+                            details=f"All {approx_inserted} vouchers successfully inserted",
+                            sync_status='completed'
+                        )
+                except Exception as log_err:
+                    print(f"[WARNING] Failed to log verification: {log_err}")
+            
+            # Update company status with logger
+            # CRITICAL: Convert alterid to string to ensure proper matching
+            alterid_str = str(alterid) if alterid is not None else ""
+            self.log(f"[{name}] 💾 Updating company in database: GUID={guid}, AlterID={alterid_str}, Records={actual_vouchers}")
+            try:
+                self.company_dao.update_sync_complete(guid, alterid_str, actual_vouchers, name, logger=sync_logger)
+                self.log(f"[{name}] ✅ Company updated in database successfully")
+            except Exception as update_err:
+                self.log(f"[{name}] ❌ Error updating company in database: {update_err}")
+                # Try to insert manually if update failed
+                try:
+                    self.company_dao.insert_or_update(name, guid, alterid_str, self.dsn_var.get().strip(), 'synced')
+                    self.log(f"[{name}] ✅ Company inserted manually")
+                except Exception as insert_err:
+                    self.log(f"[{name}] ❌ Error inserting company: {insert_err}")
+            
+            # Calculate duration
+            sync_duration = time.time() - sync_start_time
+            
+            # Log sync completion (non-blocking)
+            if sync_logger:
+                try:
+                    sync_logger.sync_completed(
+                        guid, alterid_str_log, name,
+                        records_synced=actual_vouchers,
+                        duration_seconds=sync_duration,
+                        details=f"Sync completed in {batch_count} batches. Duration: {sync_duration:.2f} seconds"
+                    )
+                except Exception as log_err:
+                    print(f"[WARNING] Failed to log completion: {log_err}")
 
             self._update_progress(100)
-            self.log(f"✅ COMPLETE: {name} | {approx_inserted} vouchers synced in {batch_count} batches!")
+            
+            # Only show COMPLETE if batches were actually processed
+            if batch_count > 0:
+                self.log(f"✅ COMPLETE: {name} | {actual_vouchers} vouchers synced in {batch_count} batches!")
+            else:
+                self.log(f"⚠️ WARNING: {name} | Sync completed but no batches were processed (0 vouchers)")
+                if sync_logger:
+                    try:
+                        sync_logger.warning(guid, alterid_str_log, name,
+                                          "Sync completed with 0 batches - no data was synced",
+                                          details="Check query execution and date range",
+                                          sync_status='completed')
+                    except:
+                        pass
             self._refresh_tree()
             # Keep progress at 100% for 2 seconds, then reset to 0
             self.root.after(2000, lambda: self._update_progress(0))
@@ -1290,6 +1748,21 @@ Keyboard Shortcuts:
 
         except Exception as e:
             error_msg = get_user_friendly_error(str(e))
+            sync_duration = time.time() - sync_start_time if 'sync_start_time' in locals() else 0
+            
+            # Log sync failure (non-blocking)
+            if sync_logger:
+                try:
+                    sync_logger.sync_failed(
+                        guid, alterid_str_log, name,
+                        error_message=str(e),
+                        error_code="SYNC_ERROR",
+                        details=f"Sync failed after {sync_duration:.2f} seconds. Error: {error_msg}",
+                        records_synced=approx_inserted
+                    )
+                except Exception as log_err:
+                    print(f"[WARNING] Failed to log failure: {log_err}")
+            
             self.log(f"❌ Sync error for {name}: {e}")
             self.log(f"   User message: {error_msg}")
             # Show user-friendly error message

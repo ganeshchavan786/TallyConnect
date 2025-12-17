@@ -20,6 +20,21 @@ Welcome to the TallyConnect documentation. This folder contains all project docu
 - **[PORTAL_TROUBLESHOOTING.md](PORTAL_TROUBLESHOOTING.md)** - Portal UI troubleshooting guide and diagnostic tool
 - **[HOW_TO_START_PORTAL.md](HOW_TO_START_PORTAL.md)** - Complete guide on how to start the portal
 
+#### Sync Architecture & Fixes (NEW)
+- **[SYNC_ARCHITECTURE_AND_FIXES.md](SYNC_ARCHITECTURE_AND_FIXES.md)** - Complete sync architecture, critical fixes, and troubleshooting guide
+- **[SYNC_FIXES_SUMMARY.md](SYNC_FIXES_SUMMARY.md)** - Executive summary of sync fixes and results
+- **[FUTURE_PLANNING.md](FUTURE_PLANNING.md)** - Roadmap and planned improvements
+- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Quick reference guide for common tasks
+- **[EXE_BUILD_AND_WORKING.md](EXE_BUILD_AND_WORKING.md)** - EXE build process, required files, and Tally SQL query flow explanation
+
+#### Database Best Practices (NEW)
+- **[DATABASE_BEST_PRACTICES_ANALYSIS.md](DATABASE_BEST_PRACTICES_ANALYSIS.md)** - Detailed analysis of normalization, indexing, encryption, backup, and audit trail
+- **[DATABASE_PRACTICES_SUMMARY.md](DATABASE_PRACTICES_SUMMARY.md)** - Simple summary in Marathi/Hindi mix of current status and recommendations
+- **[DATABASE_PRACTICES_IMPLEMENTATION.md](DATABASE_PRACTICES_IMPLEMENTATION.md)** - Detailed analysis of which practices are implemented (parameterized queries, batch operations, indexing, etc.)
+- **[PRACTICES_STATUS_SIMPLE.md](PRACTICES_STATUS_SIMPLE.md)** - Simple status summary in Marathi/Hindi mix
+- **[PHASE_WISE_IMPLEMENTATION_PLAN.md](PHASE_WISE_IMPLEMENTATION_PLAN.md)** - Complete phase-wise implementation plan with code examples and timelines
+- **[PHASE_PLAN_SIMPLE.md](PHASE_PLAN_SIMPLE.md)** - Simple phase-wise plan summary in Marathi/Hindi mix
+
 ### 📋 Quick Navigation
 
 **For Users:**
@@ -33,6 +48,13 @@ Welcome to the TallyConnect documentation. This folder contains all project docu
 **For Maintainers:**
 - Track progress in [REFACTORING_PROGRESS.md](REFACTORING_PROGRESS.md)
 - Review [CLEANUP_SUMMARY.md](CLEANUP_SUMMARY.md) for cleanup details
+- Understand sync fixes in [SYNC_FIXES_SUMMARY.md](SYNC_FIXES_SUMMARY.md)
+- Plan improvements in [FUTURE_PLANNING.md](FUTURE_PLANNING.md)
+
+**For Troubleshooting:**
+- Quick reference: [QUICK_REFERENCE.md](QUICK_REFERENCE.md)
+- Detailed architecture: [SYNC_ARCHITECTURE_AND_FIXES.md](SYNC_ARCHITECTURE_AND_FIXES.md)
+- Portal issues: [PORTAL_TROUBLESHOOTING.md](PORTAL_TROUBLESHOOTING.md)
 
 ---
 

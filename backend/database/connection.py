@@ -6,6 +6,7 @@ Handles SQLite database initialization and connection management.
 """
 
 import sqlite3
+import os
 from backend.config.settings import DB_FILE
 
 
@@ -14,11 +15,19 @@ def init_db(db_path=DB_FILE):
     Initialize SQLite database with required tables.
     
     Args:
-        db_path: Path to SQLite database file
+        db_path: Path to SQLite database file (relative or absolute)
         
     Returns:
         sqlite3.Connection: Database connection object
     """
+    # If relative path, resolve from project root (where main.py is)
+    if not os.path.isabs(db_path):
+        # Get project root: go up from backend/database/connection.py
+        current_file = os.path.abspath(__file__)
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+        db_path = os.path.join(project_root, db_path)
+        db_path = os.path.abspath(db_path)
+    
     conn = sqlite3.connect(db_path, check_same_thread=False)
     cur = conn.cursor()
     
@@ -72,6 +81,42 @@ def init_db(db_path=DB_FILE):
     )
     """)
     
+    # Create sync_logs table for maintaining sync operation logs
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS sync_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      company_guid TEXT NOT NULL,
+      company_alterid TEXT NOT NULL,
+      company_name TEXT NOT NULL,
+      log_level TEXT NOT NULL DEFAULT 'INFO',
+      log_message TEXT NOT NULL,
+      log_details TEXT,
+      sync_status TEXT,
+      records_synced INTEGER DEFAULT 0,
+      error_code TEXT,
+      error_message TEXT,
+      duration_seconds REAL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (company_guid, company_alterid) REFERENCES companies(guid, alterid)
+    )
+    """)
+    
+    # Create index for faster queries
+    cur.execute("""
+    CREATE INDEX IF NOT EXISTS idx_sync_logs_company 
+    ON sync_logs(company_guid, company_alterid)
+    """)
+    
+    cur.execute("""
+    CREATE INDEX IF NOT EXISTS idx_sync_logs_created_at 
+    ON sync_logs(created_at DESC)
+    """)
+    
+    cur.execute("""
+    CREATE INDEX IF NOT EXISTS idx_sync_logs_level 
+    ON sync_logs(log_level)
+    """)
+    
     conn.commit()
     return conn
 
@@ -81,10 +126,18 @@ def get_db_connection(db_path=DB_FILE):
     Get database connection (reuse existing or create new).
     
     Args:
-        db_path: Path to SQLite database file
+        db_path: Path to SQLite database file (relative or absolute)
         
     Returns:
         sqlite3.Connection: Database connection object
     """
+    # If relative path, resolve from project root (where main.py is)
+    if not os.path.isabs(db_path):
+        # Get project root: go up from backend/database/connection.py
+        current_file = os.path.abspath(__file__)
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+        db_path = os.path.join(project_root, db_path)
+        db_path = os.path.abspath(db_path)
+    
     return sqlite3.connect(db_path, check_same_thread=False)
 

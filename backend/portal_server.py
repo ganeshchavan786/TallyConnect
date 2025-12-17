@@ -173,6 +173,9 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             elif path.startswith('/api/sales-register-data/'):
                 self.send_sales_register_data(path, parsed)
             
+            elif path.startswith('/api/sync-logs/'):
+                self.send_sync_logs(path, parsed)
+            
             # OLD: Generate and serve report (for backward compatibility)
             elif path.startswith('/api/reports/'):
                 self.generate_and_serve_report(path)
@@ -201,14 +204,16 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
-            cursor.execute("SELECT name, guid, alterid, status, total_records FROM companies WHERE status='synced'")
+            # Show ALL companies (regardless of status or record count)
+            # This ensures all companies are visible in the portal, even if not synced yet
+            cursor.execute("SELECT name, guid, alterid, status, total_records FROM companies ORDER BY status DESC, name ASC")
             companies = []
             for row in cursor.fetchall():
                 companies.append({
                     'name': row['name'],
                     'guid': row['guid'],
                     'alterid': str(row['alterid']),
-                    'status': row['status'] or 'synced',
+                    'status': row['status'] or 'unknown',
                     'total_records': row['total_records'] or 0
                 })
             
@@ -216,9 +221,9 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             
             # Debug logging
             if not getattr(self, 'startup_mode', False):
-                print(f"[INFO] Found {len(companies)} synced companies:")
+                print(f"[INFO] Found {len(companies)} companies in database:")
                 for comp in companies:
-                    print(f"  - {comp['name']} (Records: {comp['total_records']})")
+                    print(f"  - {comp['name']} (Status: {comp['status']}, Records: {comp['total_records']})")
             
             # If no companies found, return empty array (not error)
             self.send_json_response(companies)
@@ -251,8 +256,8 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             
-            # Get all companies and match
-            cursor.execute("SELECT guid, alterid FROM companies WHERE status='synced'")
+            # Get all companies with records and match (not just synced)
+            cursor.execute("SELECT guid, alterid FROM companies WHERE total_records > 0")
             companies = cursor.fetchall()
             
             guid = None
@@ -785,6 +790,107 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                             'debit': float(r['total_debit']), 'credit': float(r['total_credit'])} 
                            for r in cursor.fetchall()]
             
+            # Parse query parameters for date filtering
+            from datetime import datetime, timedelta
+            from urllib.parse import parse_qs
+            
+            query_params = {}
+            if parsed.query:
+                query_params = {k: v[0] if isinstance(v, list) and len(v) > 0 else v 
+                               for k, v in parse_qs(parsed.query).items()}
+            
+            start_date_str = query_params.get('start_date', '')
+            end_date_str = query_params.get('end_date', '')
+            financial_year_str = query_params.get('financial_year', '')
+            
+            # Calculate date range based on query parameters
+            if start_date_str and end_date_str:
+                # Use provided date range
+                try:
+                    current_fy_start = datetime.strptime(start_date_str, "%Y-%m-%d")
+                    current_fy_end = datetime.strptime(end_date_str, "%Y-%m-%d")
+                except ValueError:
+                    # Invalid date format, fall back to current FY
+                    current_fy_start = None
+                    current_fy_end = None
+            elif financial_year_str:
+                # Parse financial year (format: "2024-25")
+                try:
+                    fy_year = int(financial_year_str.split('-')[0])
+                    current_fy_start = datetime(fy_year, 4, 1)
+                    current_fy_end = datetime(fy_year + 1, 3, 31)
+                except (ValueError, IndexError):
+                    current_fy_start = None
+                    current_fy_end = None
+            else:
+                # Default to Current Financial Year (April 1 to March 31)
+                current_fy_start = None
+                current_fy_end = None
+            
+            # If dates not provided or invalid, use current financial year
+            if not current_fy_start or not current_fy_end:
+                today = datetime.now()
+                current_year = today.year
+                if today.month >= 4:  # April to December
+                    current_fy_start = datetime(current_year, 4, 1)
+                    current_fy_end = datetime(current_year + 1, 3, 31)
+                else:  # January to March
+                    current_fy_start = datetime(current_year - 1, 4, 1)
+                    current_fy_end = datetime(current_year, 3, 31)
+            
+            # Calculate previous period for growth comparison
+            # Previous period = same duration, one year earlier
+            period_duration = (current_fy_end - current_fy_start).days
+            prev_fy_start = datetime(current_fy_start.year - 1, current_fy_start.month, current_fy_start.day)
+            prev_fy_end = datetime(current_fy_end.year - 1, current_fy_end.month, current_fy_end.day)
+            
+            # Format dates for SQL (YYYY-MM-DD)
+            current_fy_start_str = current_fy_start.strftime("%Y-%m-%d")
+            current_fy_end_str = current_fy_end.strftime("%Y-%m-%d")
+            prev_fy_start_str = prev_fy_start.strftime("%Y-%m-%d")
+            prev_fy_end_str = prev_fy_end.strftime("%Y-%m-%d")
+            
+            # Financial year label
+            financial_year_label = f"{current_fy_start.strftime('%Y')}-{current_fy_end.strftime('%Y')}"
+            
+            # Get Sales Summary for Current Financial Year
+            cursor.execute(ReportQueries.DASHBOARD_SALES_SUMMARY, 
+                         (guid, alterid, current_fy_start_str, current_fy_end_str))
+            sales_current = cursor.fetchone()
+            total_sales_amount = float(sales_current['total_sales_amount'] or 0) if sales_current else 0
+            total_sales_count = int(sales_current['total_sales_count'] or 0) if sales_current else 0
+            avg_sales_per_transaction = total_sales_amount / total_sales_count if total_sales_count > 0 else 0
+            
+            # Get Sales Summary for Previous Financial Year (for growth calculation)
+            cursor.execute(ReportQueries.DASHBOARD_SALES_SUMMARY_PREVIOUS, 
+                         (guid, alterid, prev_fy_start_str, prev_fy_end_str))
+            sales_previous = cursor.fetchone()
+            prev_sales_amount = float(sales_previous['total_sales_amount'] or 0) if sales_previous else 0
+            
+            # Calculate Growth %
+            sales_growth_percent = 0
+            if prev_sales_amount > 0:
+                sales_growth_percent = ((total_sales_amount - prev_sales_amount) / prev_sales_amount) * 100
+            elif total_sales_amount > 0:
+                sales_growth_percent = 100  # New sales (no previous data)
+            
+            # Get Monthly Sales Trend for Current Financial Year
+            cursor.execute(ReportQueries.MONTHLY_SALES_TREND, 
+                         (guid, alterid, current_fy_start_str, current_fy_end_str))
+            monthly_sales_trend = [{'month_key': r['month_key'], 'month_name': r['month_name'],
+                                   'sales_amount': float(r['sales_amount'] or 0), 
+                                   'sales_count': int(r['sales_count'] or 0)} 
+                                  for r in cursor.fetchall()]
+            
+            # Get Top Sales Customers for Current Financial Year
+            cursor.execute(ReportQueries.TOP_SALES_CUSTOMERS, 
+                         (guid, alterid, current_fy_start_str, current_fy_end_str))
+            top_sales_customers = [{'customer_name': r['customer_name'], 
+                                   'total_sales': float(r['total_sales'] or 0),
+                                   'invoice_count': int(r['invoice_count'] or 0),
+                                   'avg_invoice_value': float(r['total_sales'] or 0) / int(r['invoice_count'] or 1) if int(r['invoice_count'] or 0) > 0 else 0}
+                                  for r in cursor.fetchall()]
+            
             response_data = {
                 'company_name': company_name,
                 'stats': {
@@ -796,10 +902,22 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                     'first_transaction': stats['first_transaction_date'],
                     'last_transaction': stats['last_transaction_date']
                 },
+                'sales': {
+                    'total_sales_amount': total_sales_amount,
+                    'total_sales_count': total_sales_count,
+                    'avg_sales_per_transaction': avg_sales_per_transaction,
+                    'sales_growth_percent': sales_growth_percent,
+                    'previous_sales_amount': prev_sales_amount,
+                    'financial_year': financial_year_label,
+                    'period_start': current_fy_start_str,
+                    'period_end': current_fy_end_str
+                },
                 'top_debtors': debtors,
                 'top_creditors': creditors,
                 'voucher_types': voucher_types,
-                'monthly_trend': monthly_trend
+                'monthly_trend': monthly_trend,
+                'monthly_sales_trend': monthly_sales_trend,
+                'top_sales_customers': top_sales_customers
             }
             
             conn.close()
@@ -1080,6 +1198,60 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             import traceback
             traceback.print_exc()
             self.send_error(500, f"Error fetching sales register data: {str(e)}")
+    
+    def send_sync_logs(self, path, parsed):
+        """Send sync logs data as JSON."""
+        try:
+            from backend.database.sync_log_dao import SyncLogDAO
+            from urllib.parse import parse_qs
+            
+            # Parse query parameters
+            query_string = parsed.query if parsed.query else ''
+            query_params = dict(parse_qs(query_string)) if query_string else {}
+            company_guid = query_params.get('company_guid', [None])[0]
+            company_alterid = query_params.get('company_alterid', [None])[0]
+            log_level = query_params.get('log_level', [None])[0]
+            sync_status = query_params.get('sync_status', [None])[0]
+            limit = int(query_params.get('limit', ['50'])[0]) if query_params.get('limit') else 50
+            offset = int(query_params.get('offset', ['0'])[0]) if query_params.get('offset') else 0
+            
+            # Connect to database
+            db_path = os.path.join(get_base_dir(), "TallyConnectDb.db")
+            if not os.path.exists(db_path):
+                self.send_error(404, "Database not found")
+                return
+            
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            dao = SyncLogDAO(conn)
+            
+            # Get logs based on parameters
+            if company_guid and company_alterid:
+                # Get logs for specific company
+                logs = dao.get_logs_by_company(company_guid, company_alterid, limit, offset)
+                total_count = dao.get_log_count(company_guid, company_alterid, log_level, sync_status)
+            else:
+                # Get all logs with filters
+                logs = dao.get_all_logs(limit, offset, log_level, sync_status)
+                total_count = dao.get_log_count(None, None, log_level, sync_status)
+            
+            conn.close()
+            
+            response_data = {
+                'logs': logs,
+                'total_count': total_count,
+                'limit': limit,
+                'offset': offset,
+                'has_more': (offset + len(logs)) < total_count
+            }
+            
+            self.send_json_response(response_data)
+            
+        except Exception as e:
+            print(f"[ERROR] send_sync_logs: {e}")
+            import traceback
+            traceback.print_exc()
+            self.send_error(500, f"Error fetching sync logs: {str(e)}")
     
     def send_json_response(self, data):
         """Send JSON response with CORS headers."""

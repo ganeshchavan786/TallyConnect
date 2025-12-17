@@ -215,6 +215,75 @@ class ReportQueries:
         ORDER BY month
     """
     
+    # Dashboard - Sales Summary (Current Financial Year)
+    # Uses same logic as Sales Register: Sum all credit lines for Sales vouchers
+    # Handles both "SALES" and "GST SALES" voucher types
+    DASHBOARD_SALES_SUMMARY = """
+        SELECT 
+            COUNT(DISTINCT COALESCE(NULLIF(TRIM(vch_mst_id), ''), vch_date || '|' || vch_no)) as total_sales_count,
+            SUM(vch_cr_amt) as total_sales_amount
+        FROM vouchers
+        WHERE company_guid = ?
+            AND company_alterid = ?
+            AND (UPPER(TRIM(vch_type)) = 'SALES' OR UPPER(TRIM(vch_type)) LIKE '%SALES%')
+            AND vch_cr_amt > 0
+            AND vch_date BETWEEN ? AND ?
+    """
+    
+    # Dashboard - Sales Summary (Previous Period for Growth Calculation)
+    # Handles both "SALES" and "GST SALES" voucher types
+    DASHBOARD_SALES_SUMMARY_PREVIOUS = """
+        SELECT 
+            COUNT(DISTINCT COALESCE(NULLIF(TRIM(vch_mst_id), ''), vch_date || '|' || vch_no)) as total_sales_count,
+            SUM(vch_cr_amt) as total_sales_amount
+        FROM vouchers
+        WHERE company_guid = ?
+            AND company_alterid = ?
+            AND (UPPER(TRIM(vch_type)) = 'SALES' OR UPPER(TRIM(vch_type)) LIKE '%SALES%')
+            AND vch_cr_amt > 0
+            AND vch_date BETWEEN ? AND ?
+    """
+    
+    # Dashboard - Monthly Sales Trend
+    # Handles both "SALES" and "GST SALES" voucher types
+    MONTHLY_SALES_TREND = """
+        SELECT 
+            strftime('%Y-%m', vch_date) as month_key,
+            strftime('%b %Y', vch_date) as month_name,
+            SUM(vch_cr_amt) as sales_amount,
+            COUNT(DISTINCT COALESCE(NULLIF(TRIM(vch_mst_id), ''), vch_date || '|' || vch_no)) as sales_count
+        FROM vouchers
+        WHERE company_guid = ?
+            AND company_alterid = ?
+            AND (UPPER(TRIM(vch_type)) = 'SALES' OR UPPER(TRIM(vch_type)) LIKE '%SALES%')
+            AND vch_cr_amt > 0
+            AND vch_date BETWEEN ? AND ?
+        GROUP BY month_key
+        ORDER BY month_key
+    """
+    
+    # Dashboard - Top Sales Customers
+    # Groups sales by customer (vch_party_name) and sums total sales amount
+    # Uses same logic as Sales Register: sum all credit lines for Sales vouchers
+    # Handles both "SALES" and "GST SALES" voucher types
+    TOP_SALES_CUSTOMERS = """
+        SELECT 
+            vch_party_name as customer_name,
+            SUM(vch_cr_amt) as total_sales,
+            COUNT(DISTINCT COALESCE(NULLIF(TRIM(vch_mst_id), ''), vch_date || '|' || vch_no)) as invoice_count
+        FROM vouchers
+        WHERE company_guid = ?
+            AND company_alterid = ?
+            AND (UPPER(TRIM(vch_type)) = 'SALES' OR UPPER(TRIM(vch_type)) LIKE '%SALES%')
+            AND vch_party_name IS NOT NULL
+            AND vch_party_name != ''
+            AND vch_cr_amt > 0
+            AND vch_date BETWEEN ? AND ?
+        GROUP BY vch_party_name
+        ORDER BY SUM(vch_cr_amt) DESC
+        LIMIT 10
+    """
+    
     # Get all unique parties (for dropdowns/filters)
     GET_ALL_PARTIES = """
         SELECT DISTINCT vch_party_name as party_name
@@ -248,6 +317,7 @@ class ReportQueries:
     
     # Sales Register - Monthly Summary (Group by month)
     # Sales Register - Get unique Sales vouchers (by vch_mst_id or vch_date+vch_no)
+    # Handles both "SALES" and "GST SALES" voucher types
     SALES_REGISTER_VOUCHER_IDS = """
         SELECT DISTINCT 
             COALESCE(NULLIF(TRIM(vch_mst_id), ''), vch_date || '|' || vch_no) as voucher_key,
@@ -256,7 +326,7 @@ class ReportQueries:
         FROM vouchers
         WHERE company_guid = ?
             AND company_alterid = ?
-            AND UPPER(TRIM(vch_type)) = 'SALES'
+            AND (UPPER(TRIM(vch_type)) = 'SALES' OR UPPER(TRIM(vch_type)) LIKE '%SALES%')
             AND vch_date BETWEEN ? AND ?
         ORDER BY vch_date, vch_no
     """
@@ -282,6 +352,7 @@ class ReportQueries:
     # Sales Register - Voucher List (Grouped by voucher - Tally Style)
     # Shows one line per voucher with ONLY Sales ledger's amount
     # Filter: Only include lines where led_name contains "Sales" OR exclude GST/TAX lines
+    # Handles both "SALES" and "GST SALES" voucher types
     SALES_REGISTER_VOUCHERS = """
         SELECT 
             MAX(vch_date) as date,
@@ -294,7 +365,7 @@ class ReportQueries:
         FROM vouchers
         WHERE company_guid = ?
             AND company_alterid = ?
-            AND UPPER(TRIM(vch_type)) = 'SALES'
+            AND (UPPER(TRIM(vch_type)) = 'SALES' OR UPPER(TRIM(vch_type)) LIKE '%SALES%')
             AND vch_date BETWEEN ? AND ?
             AND vch_cr_amt > 0
             AND (
