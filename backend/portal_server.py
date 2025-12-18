@@ -1367,10 +1367,12 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             # Parse query parameters
             query_string = parsed.query if parsed.query else ''
             query_params = dict(parse_qs(query_string)) if query_string else {}
-            company_guid = query_params.get('company_guid', [None])[0]
-            company_alterid = query_params.get('company_alterid', [None])[0]
-            log_level = query_params.get('log_level', [None])[0]
-            sync_status = query_params.get('sync_status', [None])[0]
+            # IMPORTANT: Keep these filter values separate. The JSON restore loop below
+            # must not overwrite the requested filters.
+            filter_company_guid = query_params.get('company_guid', [None])[0]
+            filter_company_alterid = query_params.get('company_alterid', [None])[0]
+            filter_log_level = query_params.get('log_level', [None])[0]
+            filter_sync_status = query_params.get('sync_status', [None])[0]
             limit = int(query_params.get('limit', ['50'])[0]) if query_params.get('limit') else 50
             offset = int(query_params.get('offset', ['0'])[0]) if query_params.get('offset') else 0
             
@@ -1379,20 +1381,136 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             if not os.path.exists(db_path):
                 self.send_error(404, "Database not found")
                 return
+
+            # Self-heal: if DB commit ever failed, logs will still be present in JSON backup.
+            # Before serving logs, restore missing recent entries from JSON (idempotent).
+            try:
+                json_path = os.path.join(get_base_dir(), "sync_logs_backup.jsonl")
+                if os.path.exists(json_path):
+                    # Read only the tail to keep it fast
+                    with open(json_path, "r", encoding="utf-8") as f:
+                        lines = f.read().splitlines()
+                    tail = lines[-300:] if len(lines) > 300 else lines
+                else:
+                    tail = []
+            except Exception as e:
+                tail = []
+                print(f"[WARNING] Could not read sync_logs_backup.jsonl for restore: {e}")
             
             conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
             dao = SyncLogDAO(conn)
+
+            # Restore missing logs from JSON tail
+            # NOTE: we do NOT rely on JSON log_id because IDs can be reused/occupied if test logs were inserted/deleted.
+            # We de-duplicate using a stable signature instead.
+            if tail:
+                try:
+                    restored = 0
+                    skipped = 0
+                    for line in tail:
+                        try:
+                            data = json.loads(line)
+                        except Exception:
+                            continue
+
+                        # Required fields
+                        json_company_guid = data.get("company_guid")
+                        json_company_alterid = data.get("company_alterid")
+                        json_company_name = data.get("company_name")
+                        json_log_level = data.get("log_level")
+                        json_log_message = data.get("log_message")
+                        if not (json_company_guid and json_company_alterid and json_company_name and json_log_level and json_log_message):
+                            continue
+
+                        # Convert ISO timestamp to SQLite format if present
+                        created_at = None
+                        ts = data.get("timestamp") or data.get("created_at")
+                        if ts:
+                            try:
+                                # ISO -> "YYYY-MM-DD HH:MM:SS"
+                                created_at = ts.replace("T", " ").split(".")[0]
+                            except Exception:
+                                created_at = None
+                        if not created_at:
+                            created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                        signature_params = (
+                            str(json_company_guid),
+                            str(json_company_alterid),
+                            str(json_company_name),
+                            str(json_log_level).upper(),
+                            str(json_log_message),
+                            created_at,
+                        )
+
+                        cur = conn.cursor()
+                        cur.execute(
+                            """
+                            SELECT 1
+                            FROM sync_logs
+                            WHERE company_guid = ?
+                              AND company_alterid = ?
+                              AND company_name = ?
+                              AND log_level = ?
+                              AND log_message = ?
+                              AND created_at = ?
+                            """,
+                            signature_params,
+                        )
+                        exists = cur.fetchone() is not None
+                        cur.close()
+                        if exists:
+                            skipped += 1
+                            continue
+
+                        cur = conn.cursor()
+                        cur.execute(
+                            """
+                            INSERT INTO sync_logs
+                            (company_guid, company_alterid, company_name, log_level, log_message,
+                             log_details, sync_status, records_synced, error_code, error_message, duration_seconds, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                str(json_company_guid),
+                                str(json_company_alterid),
+                                str(json_company_name),
+                                str(json_log_level).upper(),
+                                str(json_log_message),
+                                data.get("log_details"),
+                                data.get("sync_status"),
+                                data.get("records_synced", 0),
+                                data.get("error_code"),
+                                data.get("error_message"),
+                                data.get("duration_seconds"),
+                                created_at,
+                            ),
+                        )
+                        cur.close()
+                        restored += 1
+
+                    if restored:
+                        conn.commit()
+                        try:
+                            ccur = conn.cursor()
+                            ccur.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                            ccur.close()
+                        except Exception:
+                            pass
+                        print(f"[INFO] Sync logs auto-restored from JSON: restored={restored}, skipped={skipped}")
+                except Exception as e:
+                    print(f"[WARNING] Sync logs auto-restore from JSON failed: {e}")
             
             # Get logs based on parameters
-            if company_guid and company_alterid:
+            if filter_company_guid and filter_company_alterid:
                 # Get logs for specific company
-                logs = dao.get_logs_by_company(company_guid, company_alterid, limit, offset)
-                total_count = dao.get_log_count(company_guid, company_alterid, log_level, sync_status)
+                logs = dao.get_logs_by_company(filter_company_guid, filter_company_alterid, limit, offset)
+                total_count = dao.get_log_count(filter_company_guid, filter_company_alterid, filter_log_level, filter_sync_status)
             else:
                 # Get all logs with filters
-                logs = dao.get_all_logs(limit, offset, log_level, sync_status)
-                total_count = dao.get_log_count(None, None, log_level, sync_status)
+                logs = dao.get_all_logs(limit, offset, filter_log_level, filter_sync_status)
+                total_count = dao.get_log_count(None, None, filter_log_level, filter_sync_status)
             
             conn.close()
             

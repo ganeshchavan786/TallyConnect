@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.1] - 2025-12-18
+
+### Fixed
+- **Sync logs UI reliability**
+  - Fixed `/api/sync-logs/` auto-restore overwriting requested filters (company/level/status)
+  - `created_at` is now stored in local time to match UI/date-based filtering (fixes “today logs not showing” in some cases)
+  - Ignored runtime SQLite artifacts (`*.db-wal`, `*.db-shm`) and `sync_logs_backup.jsonl` via `.gitignore`
+
 ## [1.5.0] - 2025-12-17
 
 ### Fixed

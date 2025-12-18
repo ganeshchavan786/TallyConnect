@@ -7,7 +7,7 @@ Handles all database operations related to sync logs.
 
 import sqlite3
 from typing import List, Tuple, Optional, Dict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta
 
 
 class SyncLogDAO:
@@ -29,19 +29,69 @@ class SyncLogDAO:
         if self.db_lock:
             with self.db_lock:
                 cur = self.db_conn.cursor()
+                try:
+                    if params:
+                        cur.execute(query, params)
+                    else:
+                        cur.execute(query)
+                    # Force immediate commit with verification
+                    self.db_conn.commit()
+                    # Verify commit by checking if still in transaction
+                    if hasattr(self.db_conn, 'in_transaction') and self.db_conn.in_transaction:
+                        # Still in transaction - commit may have failed, retry
+                        self.db_conn.commit()
+                except Exception as e:
+                    # Rollback on error
+                    try:
+                        self.db_conn.rollback()
+                    except:
+                        pass
+                    raise
+                return cur
+        else:
+            # No lock - direct execution (for independent logger connection)
+            cur = self.db_conn.cursor()
+            try:
+                # Check if connection is in autocommit mode
+                is_autocommit = getattr(self.db_conn, 'isolation_level', None) is None
+                
                 if params:
                     cur.execute(query, params)
                 else:
                     cur.execute(query)
+                
+                # Always commit explicitly (don't rely on autocommit)
                 self.db_conn.commit()
-                return cur
-        else:
-            cur = self.db_conn.cursor()
-            if params:
-                cur.execute(query, params)
-            else:
-                cur.execute(query)
-            self.db_conn.commit()
+                
+                # CRITICAL: Force SQLite to flush changes to disk
+                # This ensures the commit is actually written, not just buffered
+                try:
+                    # Execute a simple query to force SQLite to sync
+                    flush_cur = self.db_conn.cursor()
+                    flush_cur.execute("SELECT changes()")
+                    flush_cur.close()
+                except:
+                    pass
+                
+                # Verify connection is still open and valid
+                try:
+                    test_cur = self.db_conn.cursor()
+                    test_cur.execute("SELECT 1")
+                    test_cur.close()
+                except Exception as conn_err:
+                    print(f"[ERROR] Database connection is invalid: {conn_err}")
+                    raise Exception(f"Database connection error: {conn_err}")
+                    
+            except Exception as e:
+                if not is_autocommit:
+                    try:
+                        self.db_conn.rollback()
+                    except:
+                        pass
+                print(f"[ERROR] Failed to execute query: {e}")
+                import traceback
+                traceback.print_exc()
+                raise
             return cur
     
     def add_log(self, company_guid: str, company_alterid: str, company_name: str,
@@ -75,14 +125,137 @@ class SyncLogDAO:
          duration_seconds, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
-        # Phase 1: Use UTC timestamps for consistency
-        created_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        # Use local timestamps to match UI expectations and date-based filters
+        created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         params = (company_guid, company_alterid, company_name, log_level, log_message,
                  log_details, sync_status, records_synced, error_code, error_message,
                  duration_seconds, created_at)
         
-        cur = self._execute(query, params)
-        return cur.lastrowid
+        try:
+            # Execute query and get log ID
+            cur = self._execute(query, params)
+            log_id = cur.lastrowid
+            
+            # CRITICAL: Ensure commit happened (explicit commit)
+            # Commit is already done in _execute, but we do it again to be sure
+            self.db_conn.commit()
+            
+            # CRITICAL: Force SQLite to write to disk (checkpoint WAL if in WAL mode)
+            try:
+                # This ensures WAL changes are written to main database file
+                # TRUNCATE mode forces immediate write to main database
+                checkpoint_cur = self.db_conn.cursor()
+                checkpoint_cur.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                checkpoint_result = checkpoint_cur.fetchone()
+                checkpoint_cur.close()
+                # Checkpoint returns: (busy, log, checkpointed)
+                # If checkpointed > 0, some pages were written
+                if checkpoint_result and len(checkpoint_result) >= 3:
+                    if checkpoint_result[2] > 0:
+                        print(f"[DEBUG] WAL checkpoint: {checkpoint_result[2]} pages written to main database")
+                    elif checkpoint_result[0] == 1:
+                        print(f"[WARNING] WAL checkpoint busy - database may be locked")
+            except Exception as checkpoint_err:
+                # WAL checkpoint might fail if not in WAL mode, that's OK
+                print(f"[WARNING] WAL checkpoint error: {checkpoint_err}")
+            
+            # CRITICAL: Force connection to flush any pending operations
+            try:
+                # Execute a simple query to ensure connection is active and flushed
+                flush_cur = self.db_conn.cursor()
+                flush_cur.execute("SELECT changes()")
+                flush_cur.close()
+            except:
+                pass
+            
+            # Verify log was inserted by querying it back
+            if log_id is None or log_id == 0:
+                # Try to get the last inserted ID manually
+                try:
+                    verify_cur = self.db_conn.cursor()
+                    verify_cur.execute("SELECT last_insert_rowid()")
+                    result = verify_cur.fetchone()
+                    if result and result[0]:
+                        log_id = result[0]
+                    verify_cur.close()
+                except:
+                    pass
+            
+            # CRITICAL: Verify log was actually inserted (with retry mechanism)
+            if log_id:
+                import time
+                max_retries = 5
+                found = False
+                for retry in range(max_retries):
+                    try:
+                        # CRITICAL: Use same connection for verification
+                        # WAL mode allows concurrent reads, but we need to ensure we're reading from same connection
+                        verify_cur = self.db_conn.cursor()
+                        verify_cur.execute("SELECT id FROM sync_logs WHERE id = ?", (log_id,))
+                        verify_result = verify_cur.fetchone()
+                        verify_cur.close()
+                        
+                        if verify_result:
+                            # Log found - commit was successful
+                            found = True
+                            if retry > 0:
+                                print(f"[INFO] Log ID {log_id} verified after {retry} retries")
+                            break
+                        else:
+                            # Log not found - commit may have failed
+                            if retry < max_retries - 1:
+                                time.sleep(0.2)  # Wait 200ms for WAL to sync
+                                # Force commit again
+                                self.db_conn.commit()
+                                # Check if connection is still valid
+                                try:
+                                    test_cur = self.db_conn.cursor()
+                                    test_cur.execute("SELECT 1")
+                                    test_cur.close()
+                                except Exception as conn_test_err:
+                                    print(f"[ERROR] Connection invalid during retry: {conn_test_err}")
+                                    break
+                                print(f"[WARNING] Log ID {log_id} not found, retrying commit (attempt {retry + 1}/{max_retries})")
+                            else:
+                                print(f"[ERROR] Log ID {log_id} returned but NOT found in database after {max_retries} retries!")
+                                print(f"[ERROR] Commit is failing - connection may be closed or database locked")
+                                print(f"[ERROR] Connection state: isolation_level={getattr(self.db_conn, 'isolation_level', 'unknown')}")
+                                # Try to verify with a fresh query
+                                try:
+                                    fresh_cur = self.db_conn.cursor()
+                                    fresh_cur.execute("SELECT MAX(id) FROM sync_logs")
+                                    max_id = fresh_cur.fetchone()[0]
+                                    fresh_cur.close()
+                                    print(f"[DEBUG] Current max ID in database: {max_id}, Expected: {log_id}")
+                                    if max_id and max_id < log_id:
+                                        print(f"[ERROR] Database max ID ({max_id}) is less than returned log ID ({log_id})!")
+                                        print(f"[ERROR] This confirms commit failed - log was not persisted!")
+                                except Exception as fresh_err:
+                                    print(f"[ERROR] Could not check max ID: {fresh_err}")
+                    except Exception as verify_err:
+                        if retry < max_retries - 1:
+                            time.sleep(0.2)
+                        else:
+                            print(f"[ERROR] Could not verify log insertion: {verify_err}")
+                            import traceback
+                            traceback.print_exc()
+                
+                if not found and log_id:
+                    print(f"[CRITICAL] Log ID {log_id} was returned but log is NOT in database!")
+                    print(f"[CRITICAL] This indicates a serious commit failure!")
+                    print(f"[CRITICAL] Check: 1) Connection is open, 2) WAL mode is enabled, 3) No other process has database locked")
+            
+            return log_id
+        except Exception as e:
+            print(f"[SYNC LOG DAO ERROR] Failed to insert log: {e}")
+            import traceback
+            traceback.print_exc()
+            # Try to rollback if possible
+            try:
+                self.db_conn.rollback()
+            except:
+                pass
+            return None
     
     def get_logs_by_company(self, company_guid: str, company_alterid: str,
                             limit: int = 100, offset: int = 0) -> List[Dict]:
@@ -267,11 +440,10 @@ class SyncLogDAO:
         Returns:
             Number of logs deleted
         """
-        query = """
-        DELETE FROM sync_logs 
-        WHERE created_at < datetime('now', '-' || ? || ' days')
-        """
-        cur = self._execute(query, (days,))
+        cutoff_dt = datetime.now() - timedelta(days=days)
+        cutoff_str = cutoff_dt.strftime("%Y-%m-%d %H:%M:%S")
+        query = "DELETE FROM sync_logs WHERE created_at < ?"
+        cur = self._execute(query, (cutoff_str,))
         return cur.rowcount
     
     def delete_logs_by_company(self, company_guid: str, company_alterid: str) -> int:

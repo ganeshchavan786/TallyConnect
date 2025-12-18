@@ -42,13 +42,19 @@ desktop.ini
 
 # Database
 *.db
+*.db-wal
+*.db-shm
+*.db-journal
 *.sqlite
+*.sqlite-wal
+*.sqlite-shm
 *.sqlite3
 TallyConnectDb.db
 
 # Logs
 *.log
 logs/
+sync_logs_backup.jsonl
 
 # Build artifacts
 build/

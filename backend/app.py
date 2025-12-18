@@ -1171,11 +1171,18 @@ Keyboard Shortcuts:
         estimated_batches = 0  # We'll estimate based on date range
         
         # Initialize sync logger (with error handling to prevent hang)
+        # Use None for db_lock to allow logger to use its own connection without lock conflicts
+        # Logger has its own connection and WAL mode, so it can write independently
         sync_logger = None
         try:
-            sync_logger = get_sync_logger(db_path=DB_FILE, db_lock=self.db_lock)
+            # Don't pass db_lock - logger will use its own connection with WAL mode
+            # This allows logging even when main sync is holding locks
+            sync_logger = get_sync_logger(db_path=DB_FILE, db_lock=None)
+            print(f"[DEBUG] Sync logger initialized successfully (independent connection)")
         except Exception as logger_err:
             print(f"[WARNING] Failed to initialize sync logger: {logger_err}")
+            import traceback
+            traceback.print_exc()
             sync_logger = None
         
         sync_start_time = time.time()
@@ -1185,12 +1192,15 @@ Keyboard Shortcuts:
         alterid_str_log = str(alterid) if alterid is not None else ""
         if sync_logger:
             try:
-                sync_logger.sync_started(guid, alterid_str_log, name, details=f"Date range: {from_date} to {to_date}")
-                print(f"[DEBUG] Sync start logged successfully")
+                print(f"[DEBUG] Attempting to log sync start: {name}, GUID: {guid}, AlterID: {alterid_str_log}")
+                log_id = sync_logger.sync_started(guid, alterid_str_log, name, details=f"Date range: {from_date} to {to_date}")
+                print(f"[DEBUG] Sync start logged successfully, Log ID: {log_id}")
             except Exception as log_err:
                 print(f"[WARNING] Failed to log sync start: {log_err}")
                 import traceback
                 traceback.print_exc()
+        else:
+            print(f"[WARNING] Sync logger is None - cannot log sync start")
         
         try:
             try:
@@ -1755,14 +1765,20 @@ Keyboard Shortcuts:
             # Log sync completion (non-blocking)
             if sync_logger:
                 try:
-                    sync_logger.sync_completed(
+                    print(f"[DEBUG] Attempting to log sync completion: {name}, Records: {actual_vouchers}, Duration: {sync_duration:.2f}s")
+                    log_id = sync_logger.sync_completed(
                         guid, alterid_str_log, name,
                         records_synced=actual_vouchers,
                         duration_seconds=sync_duration,
                         details=f"Sync completed in {batch_count} batches. Duration: {sync_duration:.2f} seconds"
                     )
+                    print(f"[DEBUG] Sync completion logged successfully, Log ID: {log_id}")
                 except Exception as log_err:
                     print(f"[WARNING] Failed to log completion: {log_err}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                print(f"[WARNING] Sync logger is None - cannot log sync completion")
 
             self._update_progress(100)
             
