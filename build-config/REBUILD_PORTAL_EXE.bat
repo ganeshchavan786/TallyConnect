@@ -33,6 +33,7 @@ if exist "dist\TallyConnectPortal.exe" (
 
 echo [1/2] Building TallyConnectPortal.exe...
 cd /d "%~dp0\.."
+python scripts\generate_windows_icons.py --input Logo.png --out build-config\TallyConnect.ico >nul 2>&1
 python -m PyInstaller --clean --noconfirm build-config/TallyConnectPortal.spec
 
 if not exist "dist\TallyConnectPortal.exe" (
@@ -44,6 +45,9 @@ if not exist "dist\TallyConnectPortal.exe" (
 echo.
 echo [SUCCESS] TallyConnectPortal.exe rebuilt successfully!
 echo Location: dist\TallyConnectPortal.exe
+if exist "build-config\TallyConnect.ico" (
+    copy /y "build-config\TallyConnect.ico" "dist\TallyConnect.ico" >nul
+)
 echo.
 echo [2/2] Testing EXE...
 echo.

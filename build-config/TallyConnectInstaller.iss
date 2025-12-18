@@ -12,14 +12,14 @@ AppUpdatesURL=
 DefaultDirName={localappdata}\Programs\TallyConnect
 DefaultGroupName=TallyConnect
 UninstallDisplayIcon={app}\TallyConnect.exe
-OutputDir=dist
+OutputDir=..\dist
 OutputBaseFilename=TallyConnectSetup_v5.6
 Compression=lzma2/ultra64
 SolidCompression=yes
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 WizardStyle=modern
-SetupIconFile=
+SetupIconFile=TallyConnect.ico
 UninstallDisplayName=TallyConnect - Modern Tally Sync Platform
 PrivilegesRequired=lowest
 
@@ -27,8 +27,11 @@ PrivilegesRequired=lowest
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "dist\TallyConnect.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "dist\TallyConnectPortal.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\TallyConnect.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\TallyConnectPortal.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "TallyConnect.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\Logo.png"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build_info.json"; DestDir: "{app}"; Flags: ignoreversion
 ; Database will be created automatically by the application on first run
 ; Source: "TallyConnectDb.db"; DestDir: "{app}"; Flags: ignoreversion onlyifdoesntexist
 

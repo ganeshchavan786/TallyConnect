@@ -36,12 +36,17 @@ class DateFilterManager {
         if (month >= this.fyStartMonth) {
             // April to December - current FY
             fyStart = new Date(year, this.fyStartMonth - 1, 1);
-            fyEnd = new Date(year + 1, this.fyStartMonth - 2, this.getLastDayOfMonth(year + 1, this.fyStartMonth - 1));
+            // FY ends on last day of month before FY start month (Apr-start FY => Mar 31 next year)
+            const endMonthIndex = this.fyStartMonth - 2; // Apr(4) -> Mar index 2
+            const endYear = year + 1;
+            fyEnd = new Date(endYear, endMonthIndex, this.getLastDayOfMonth(endYear, endMonthIndex));
             fyLabel = `${year}-${String(year + 1).slice(-2)}`;
         } else {
             // January to March - previous FY
             fyStart = new Date(year - 1, this.fyStartMonth - 1, 1);
-            fyEnd = new Date(year, this.fyStartMonth - 2, this.getLastDayOfMonth(year, this.fyStartMonth - 1));
+            const endMonthIndex = this.fyStartMonth - 2; // Mar index 2
+            const endYear = year;
+            fyEnd = new Date(endYear, endMonthIndex, this.getLastDayOfMonth(endYear, endMonthIndex));
             fyLabel = `${year - 1}-${String(year).slice(-2)}`;
         }
         
@@ -52,7 +57,9 @@ class DateFilterManager {
      * Get last day of month
      */
     getLastDayOfMonth(year, month) {
-        return new Date(year, month, 0).getDate();
+        // monthIndex is 0-11; last day = new Date(year, monthIndex + 1, 0)
+        const monthIndex = month;
+        return new Date(year, monthIndex + 1, 0).getDate();
     }
     
     /**
@@ -67,6 +74,44 @@ class DateFilterManager {
         let start, end;
         
         switch(rangeType) {
+            case 'current_month': {
+                // Current calendar month (1st -> last day)
+                const y = today.getFullYear();
+                const m = today.getMonth(); // 0-11
+                start = new Date(y, m, 1);
+                start.setHours(0, 0, 0, 0);
+                end = new Date(y, m, this.getLastDayOfMonth(y, m));
+                end.setHours(23, 59, 59, 999);
+                break;
+            }
+
+            case 'last_7_days': {
+                // Rolling last 7 days (including today)
+                start = new Date(today);
+                start.setDate(start.getDate() - 6);
+                start.setHours(0, 0, 0, 0);
+                end = new Date(today);
+                break;
+            }
+
+            case 'previous_week': {
+                // Previous week (Mon-Sun) in local time
+                // Convert JS day (Sun=0..Sat=6) to Monday-based index (Mon=0..Sun=6)
+                const mondayIndex = (today.getDay() + 6) % 7;
+                const thisMonday = new Date(today);
+                thisMonday.setDate(thisMonday.getDate() - mondayIndex);
+                thisMonday.setHours(0, 0, 0, 0);
+
+                start = new Date(thisMonday);
+                start.setDate(start.getDate() - 7);
+                start.setHours(0, 0, 0, 0);
+
+                end = new Date(start);
+                end.setDate(end.getDate() + 6);
+                end.setHours(23, 59, 59, 999);
+                break;
+            }
+
             case 'today':
                 start = new Date(today);
                 start.setHours(0, 0, 0, 0);
@@ -143,6 +188,18 @@ class DateFilterManager {
         
         return { start, end };
     }
+
+    /**
+     * Format date to "DD-MMM-YYYY" for UI display
+     */
+    formatDateForDisplay(date) {
+        const d = new Date(date);
+        const dd = String(d.getDate()).padStart(2, '0');
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const mmm = months[d.getMonth()] || '';
+        const yyyy = d.getFullYear();
+        return `${dd}-${mmm}-${yyyy}`;
+    }
     
     /**
      * Get date range for a specific financial year
@@ -151,7 +208,9 @@ class DateFilterManager {
      */
     getFinancialYearRange(year) {
         const start = new Date(year, this.fyStartMonth - 1, 1);
-        const end = new Date(year + 1, this.fyStartMonth - 2, this.getLastDayOfMonth(year + 1, this.fyStartMonth - 1));
+        const endMonthIndex = this.fyStartMonth - 2; // Apr-start FY => Mar index 2
+        const endYear = year + 1;
+        const end = new Date(endYear, endMonthIndex, this.getLastDayOfMonth(endYear, endMonthIndex));
         return { start, end };
     }
     
@@ -198,6 +257,9 @@ class DateFilterManager {
      */
     renderDateRangeFilter() {
         const dateRangeOptions = [
+            { value: 'current_month', label: 'Current Month (1st–last day)' },
+            { value: 'last_7_days', label: 'Last 7 days (rolling)' },
+            { value: 'previous_week', label: 'Previous Week (Mon–Sun)' },
             { value: 'today', label: 'Today' },
             { value: 'last_30_days', label: 'Last 30 days' },
             { value: 'last_60_days', label: 'Last 60 days' },
@@ -329,12 +391,48 @@ class DateFilterManager {
             console.error(`Container #${this.containerId} not found`);
             return;
         }
+
+        // Period summary (always show exact From–To so users understand what "current month/week" means)
+        let periodStart = null;
+        let periodEnd = null;
+        let periodLabel = '';
+        try {
+            const params = this.getFilterParams();
+            periodStart = params.start_date;
+            periodEnd = params.end_date;
+            if (this.selectedYear) {
+                periodLabel = `FY ${this.selectedYear}-${String(parseInt(this.selectedYear) + 1).slice(-2)}`;
+            } else {
+                const options = [
+                    { value: 'current_month', label: 'Current Month' },
+                    { value: 'last_7_days', label: 'Last 7 days' },
+                    { value: 'previous_week', label: 'Previous Week' },
+                    { value: 'today', label: 'Today' },
+                    { value: 'last_30_days', label: 'Last 30 days' },
+                    { value: 'last_60_days', label: 'Last 60 days' },
+                    { value: 'last_90_days', label: 'Last 90 days' },
+                    { value: 'last_year', label: 'Last year' },
+                    { value: 'current_financial_year', label: 'Current FY' },
+                    { value: 'previous_financial_year', label: 'Previous FY' },
+                    { value: 'all_time', label: 'All time' },
+                    { value: 'custom', label: 'Custom' },
+                ];
+                periodLabel = options.find(o => o.value === this.selectedDateRange)?.label || 'Period';
+            }
+        } catch (e) {
+            // ignore
+        }
         
         container.innerHTML = `
             <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
                 <div style="font-weight: 600; color: #2c3e50;">Filters:</div>
                 ${this.renderDateRangeFilter()}
                 ${this.renderYearFilter()}
+            </div>
+            <div id="periodSummary" style="margin-top: -10px; margin-bottom: 12px; font-size: 12px; color: #6c757d;">
+                <strong style="color:#2c3e50;">Period:</strong>
+                ${periodLabel ? `${periodLabel} • ` : ''}
+                ${periodStart && periodEnd ? `${periodStart} → ${periodEnd}` : ''}
             </div>
         `;
         

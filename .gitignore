@@ -40,6 +40,12 @@ ENV/
 Thumbs.db
 desktop.ini
 
+# Icons (generated during build)
+*.ico
+
+# Build stamp (generated during build)
+build_info.json
+
 # Database
 *.db
 *.db-wal

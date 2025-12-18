@@ -9,28 +9,71 @@
     box-sizing: border-box;
 }
 
+:root {
+    /* Brand / Theme */
+    --bg: #f6f8fc;
+    --surface: #ffffff;
+    --surface-2: #f1f5f9;
+    --text: #0f172a;
+    --muted: #64748b;
+    --muted-2: #94a3b8;
+    --border: #e2e8f0;
+    --primary: #2563eb;
+    --primary-2: #1d4ed8;
+    --success: #16a34a;
+    --danger: #dc2626;
+    --warning: #f59e0b;
+
+    /* Effects */
+    --radius: 14px;
+    --radius-sm: 10px;
+    --shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.08);
+    --shadow: 0 14px 40px rgba(15, 23, 42, 0.10);
+    --ring: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: #f0f2f5;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    background: radial-gradient(1200px 600px at 20% 0%, rgba(37, 99, 235, 0.08), transparent 60%),
+                radial-gradient(900px 500px at 90% 10%, rgba(22, 163, 74, 0.06), transparent 55%),
+                var(--bg);
     display: flex;
     height: 100vh;
     overflow: hidden;
+    color: var(--text);
+}
+
+a, a:visited {
+    color: inherit;
 }
 
 /* Typography */
 .page-title {
     font-size: 28px;
-    color: #2c3e50;
-    margin-bottom: 20px;
-    padding-bottom: 10px;
-    border-bottom: 3px solid #3498db;
+    color: var(--text);
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 0;
+    position: relative;
+    letter-spacing: 0.2px;
+}
+
+.page-title::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 140px;
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--primary), rgba(37, 99, 235, 0.2));
 }
 
 /* Loading States */
 .loading {
     text-align: center;
     padding: 50px;
-    color: #7f8c8d;
+    color: var(--muted);
 }
 
 .loading-overlay {
@@ -39,7 +82,8 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(6px);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -48,7 +92,7 @@ body {
 
 .spinner {
     border: 4px solid #f3f3f3;
-    border-top: 4px solid #3498db;
+    border-top: 4px solid var(--primary);
     border-radius: 50%;
     width: 40px;
     height: 40px;
@@ -58,5 +102,44 @@ body {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* Nice scrollbars (Chromium/Edge) */
+*::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.35);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.55);
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+/* Motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Dashboard slicer micro-interactions */
+#salesSlicers button {
+    transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+#salesSlicers button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.10);
+    filter: brightness(1.02);
 }
 

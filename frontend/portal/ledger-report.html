@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ledger Report - TallyConnect</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     
     <!-- CSS Files -->
     <link rel="stylesheet" href="assets/css/main.css">
@@ -16,8 +17,13 @@
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="logo">
-            <h1>📊 TallyConnect</h1>
-            <p>Report Portal</p>
+            <div class="brand">
+                <img class="brand-logo" src="/logo.png" alt="Logo" onerror="this.style.display='none'">
+                <div>
+                    <div class="brand-title">TallyConnect</div>
+                    <div class="brand-subtitle">Report Portal</div>
+                </div>
+            </div>
         </div>
         <ul class="nav-menu">
             <li class="nav-item">
@@ -47,18 +53,18 @@
             <a href="ledgers.html" class="back-button">← Back to Ledgers</a>
             
             <!-- Period Selection Controls -->
-            <div id="periodControls" style="display: none; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
-                <div style="display: flex; gap: 15px; align-items: end; flex-wrap: wrap;">
-                    <div style="flex: 1; min-width: 200px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 14px;">From Date</label>
-                        <input type="date" id="fromDate" style="width: 100%; padding: 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 14px;">
+            <div id="periodControls" class="tc-panel tc-period-controls">
+                <div class="tc-period-row">
+                    <div class="tc-field">
+                        <label class="tc-label" for="fromDate">From Date</label>
+                        <input type="date" id="fromDate" class="tc-input">
                     </div>
-                    <div style="flex: 1; min-width: 200px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 14px;">To Date</label>
-                        <input type="date" id="toDate" style="width: 100%; padding: 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 14px;">
+                    <div class="tc-field">
+                        <label class="tc-label" for="toDate">To Date</label>
+                        <input type="date" id="toDate" class="tc-input">
                     </div>
                     <div>
-                        <button id="applyPeriodBtn" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;">
+                        <button id="applyPeriodBtn" class="tc-btn tc-btn--primary">
                             Apply Period
                         </button>
                     </div>
@@ -66,9 +72,9 @@
             </div>
             
             <div id="reportContent" class="report-viewer">
-                <div style="text-align: center; padding: 50px;">
+                <div class="tc-loading">
                     <div class="spinner" style="margin: 20px auto;"></div>
-                    <div style="color: #3498db; font-size: 18px; margin: 20px 0;">Loading ledger report...</div>
+                    <div class="tc-loading__text">Loading ledger report...</div>
                 </div>
             </div>
         </div>
@@ -177,7 +183,7 @@
                         <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
                         <div style="font-size: 20px; font-weight: 600; margin: 20px 0;">Invalid Report Parameters</div>
                         <div style="color: #7f8c8d; font-size: 14px;">Please select a ledger from the ledgers page.</div>
-                        <a href="ledgers.html" class="back-button" style="display: inline-block; margin-top: 20px;">Go to Ledgers</a>
+                        <a href="ledgers.html" class="back-button tc-inline tc-mt-16">Go to Ledgers</a>
                     </div>
                 `;
             }

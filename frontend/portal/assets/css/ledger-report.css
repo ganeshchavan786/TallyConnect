@@ -1,8 +1,500 @@
 /* ============================================
-   Ledger Report CSS - Report Specific Styles
+   Report UI (Dashboard + Ledger) - Class-based styling
    ============================================ */
 
-/* This file will contain styles specific to ledger report rendering */
-/* Currently, ledger report uses inline styles in JavaScript */
-/* Will be refactored when HTML files are split */
+.tc-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 10px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.78);
+    backdrop-filter: blur(10px);
+    box-shadow: var(--shadow-sm);
+    margin: 10px 0 18px 0;
+}
+
+.tc-tab {
+    appearance: none;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 900;
+    color: var(--muted);
+    background: transparent;
+    cursor: pointer;
+    transition: background 140ms ease, transform 140ms ease, box-shadow 140ms ease, color 140ms ease;
+}
+
+.tc-tab:hover {
+    background: rgba(15, 23, 42, 0.05);
+    transform: translateY(-1px);
+}
+
+.tc-tab--active {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.14) 0%, rgba(29, 78, 216, 0.08) 100%);
+    border-color: rgba(37, 99, 235, 0.35);
+    color: var(--primary-2);
+    box-shadow: 0 14px 30px rgba(37, 99, 235, 0.10);
+}
+
+.tc-tab-panels {
+    width: 100%;
+}
+
+.tc-tab-panel {
+    display: none;
+}
+
+.tc-tab-panel--active {
+    display: block;
+}
+
+.tc-panel {
+    background: rgba(255, 255, 255, 0.86);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(10px);
+    padding: 18px;
+}
+
+.tc-report {
+    padding: 18px;
+}
+
+.tc-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.tc-title-xl {
+    font-size: 24px;
+    font-weight: 900;
+    letter-spacing: 0.2px;
+    color: var(--text);
+    margin: 0;
+}
+
+.tc-title-lg {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+    color: var(--text);
+    margin: 0;
+}
+
+.tc-subtitle {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 6px;
+}
+
+.tc-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.tc-btn {
+    appearance: none;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease, background 140ms ease;
+    text-decoration: none;
+    user-select: none;
+}
+
+.tc-btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.02);
+}
+
+.tc-btn:active {
+    transform: translateY(0px);
+}
+
+.tc-btn--primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%);
+    color: #fff;
+    box-shadow: 0 16px 34px rgba(37, 99, 235, 0.22);
+}
+
+.tc-btn--success {
+    background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+    color: #fff;
+    box-shadow: 0 16px 34px rgba(22, 163, 74, 0.18);
+}
+
+.tc-btn--danger {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    color: #fff;
+    box-shadow: 0 16px 34px rgba(220, 38, 38, 0.16);
+}
+
+.tc-btn--secondary {
+    background: rgba(15, 23, 42, 0.06);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+.tc-btn--ghost {
+    background: rgba(255, 255, 255, 0.72);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+.tc-btn--warning {
+    border-color: rgba(245, 158, 11, 0.35);
+    color: #b45309;
+}
+
+/* Slicer 'Clear' button (compact) */
+#salesSlicers .tc-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.tc-grid {
+    display: grid;
+    gap: 14px;
+}
+
+.tc-grid--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.tc-grid--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tc-grid--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.tc-metric {
+    border-radius: var(--radius);
+    padding: 16px;
+    color: #fff;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.tc-metric__label {
+    font-size: 13px;
+    opacity: 0.88;
+}
+
+.tc-metric__value {
+    font-size: 28px;
+    font-weight: 900;
+    margin-top: 10px;
+    letter-spacing: 0.2px;
+}
+
+.tc-metric__value--sm {
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+.tc-metric__value--xl {
+    font-size: 32px;
+}
+
+.tc-metric__hint {
+    font-size: 12px;
+    opacity: 0.85;
+    margin-top: 6px;
+}
+
+.tc-metric--indigo { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.tc-metric--pink { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.tc-metric--cyan { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.tc-metric--green { background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); }
+.tc-metric--blue { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); }
+.tc-metric--purple { background: linear-gradient(135deg, #7c3aed 0%, #9333ea 100%); }
+.tc-metric--slate { background: linear-gradient(135deg, #0f172a 0%, #334155 100%); }
+.tc-metric--stone { background: linear-gradient(135deg, #64748b 0%, #94a3b8 100%); }
+.tc-metric--red { background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); }
+.tc-metric--amber { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+
+.tc-metric--compact .tc-metric__value {
+    font-size: 22px;
+}
+
+.tc-section {
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(10px);
+    padding: 18px;
+    margin-bottom: 18px;
+}
+
+.tc-section__title {
+    font-size: 16px;
+    font-weight: 900;
+    color: var(--text);
+    margin: 0 0 10px 0;
+}
+
+.tc-section__hint {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 12px;
+}
+
+.tc-chart {
+    position: relative;
+    height: 400px;
+}
+
+.tc-chart--h360 { height: 360px; }
+.tc-chart--h320 { height: 320px; }
+
+.tc-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.tc-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.tc-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #0f172a;
+    color: #fff;
+    padding: 12px 10px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.tc-table tbody td {
+    padding: 10px 10px;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+    color: var(--text);
+    background: transparent;
+    vertical-align: top;
+}
+
+.tc-table tbody tr:hover td {
+    background: rgba(37, 99, 235, 0.04);
+}
+
+.tc-table tfoot td {
+    padding: 12px 10px;
+    font-weight: 900;
+    background: rgba(15, 23, 42, 0.04);
+    border-top: 1px solid var(--border);
+}
+
+.tc-right { text-align: right; }
+.tc-center { text-align: center; }
+.tc-muted { color: var(--muted); }
+.tc-fw-600 { font-weight: 700; }
+
+.tc-text-success { color: var(--success); }
+.tc-text-danger { color: var(--danger); }
+.tc-text-primary { color: var(--primary); }
+
+.tc-period-bar {
+    margin: 14px 0 16px 0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.04);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.tc-loading {
+    text-align: center;
+    padding: 46px 20px;
+}
+
+.tc-loading__text {
+    color: var(--primary);
+    font-weight: 800;
+    font-size: 16px;
+    margin-top: 14px;
+}
+
+.tc-filterbar {
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 60; /* keep filter dropdowns above report cards */
+    overflow: visible;
+}
+
+.tc-period-controls {
+    margin: 16px 0;
+    display: none;
+}
+
+/* Ensure filter dropdowns render above other stacking contexts (e.g., backdrop-filter cards) */
+.date-range-dropdown,
+.year-filter-dropdown {
+    z-index: 99999 !important;
+}
+
+.tc-period-row {
+    display: flex;
+    gap: 14px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.tc-field {
+    flex: 1;
+    min-width: 200px;
+}
+
+.tc-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 800;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.tc-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 14px;
+    background: rgba(255,255,255,0.9);
+}
+
+.tc-input:focus {
+    outline: none;
+    border-color: rgba(37, 99, 235, 0.65);
+    box-shadow: var(--ring);
+}
+
+.tc-slicers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.tc-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.tc-chip-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 800;
+    margin-right: 4px;
+}
+
+.tc-chip {
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.92);
+    color: var(--text);
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.tc-chip--active-primary {
+    border-color: rgba(37, 99, 235, 0.55);
+    background: rgba(37, 99, 235, 0.10);
+    color: var(--primary-2);
+}
+
+.tc-chip--active-success {
+    border-color: rgba(22, 163, 74, 0.45);
+    background: rgba(22, 163, 74, 0.10);
+    color: #166534;
+}
+
+.tc-chip-summary {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.tc-bars {
+    display: grid;
+    gap: 10px;
+}
+
+.tc-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.tc-bar-label {
+    width: 110px;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tc-bar-track {
+    flex: 1;
+    height: 12px;
+    background: rgba(148, 163, 184, 0.25);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.tc-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #16a34a 0%, #22c55e 100%);
+    width: 0%;
+}
+
+.tc-bar-value {
+    width: 140px;
+    text-align: right;
+    font-size: 12px;
+    color: var(--text);
+    font-weight: 800;
+}
+
+/* Small utilities (report pages only) */
+.tc-mb-8 { margin-bottom: 8px; }
+.tc-mb-12 { margin-bottom: 12px; }
+.tc-mb-16 { margin-bottom: 16px; }
+.tc-mb-20 { margin-bottom: 20px; }
+.tc-mt-16 { margin-top: 16px; }
+.tc-inline { display: inline-block; }
 

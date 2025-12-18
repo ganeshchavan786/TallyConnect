@@ -249,7 +249,24 @@ class ReportQueries:
     MONTHLY_SALES_TREND = """
         SELECT 
             strftime('%Y-%m', vch_date) as month_key,
-            strftime('%b %Y', vch_date) as month_name,
+            (
+              CASE strftime('%m', vch_date)
+                WHEN '01' THEN 'Jan'
+                WHEN '02' THEN 'Feb'
+                WHEN '03' THEN 'Mar'
+                WHEN '04' THEN 'Apr'
+                WHEN '05' THEN 'May'
+                WHEN '06' THEN 'Jun'
+                WHEN '07' THEN 'Jul'
+                WHEN '08' THEN 'Aug'
+                WHEN '09' THEN 'Sep'
+                WHEN '10' THEN 'Oct'
+                WHEN '11' THEN 'Nov'
+                WHEN '12' THEN 'Dec'
+                ELSE ''
+              END
+              || ' ' || strftime('%Y', vch_date)
+            ) as month_name,
             SUM(vch_cr_amt) as sales_amount,
             COUNT(DISTINCT COALESCE(NULLIF(TRIM(vch_mst_id), ''), vch_date || '|' || vch_no)) as sales_count
         FROM vouchers
@@ -260,6 +277,118 @@ class ReportQueries:
             AND vch_date BETWEEN ? AND ?
         GROUP BY month_key
         ORDER BY month_key
+    """
+
+    # Dashboard - Sales Returns / Credit Notes Summary (same period as sales)
+    # NOTE: Tally Sales Return is commonly "CREDIT NOTE". Amount direction can be DR or CR depending on export.
+    # We normalize by taking whichever side is positive on the row.
+    DASHBOARD_SALES_RETURNS_SUMMARY = """
+        SELECT
+            COUNT(DISTINCT COALESCE(NULLIF(TRIM(vch_mst_id), ''), vch_date || '|' || vch_no)) as returns_count,
+            SUM(
+                CASE
+                    WHEN COALESCE(vch_dr_amt, 0) > 0 THEN COALESCE(vch_dr_amt, 0)
+                    WHEN COALESCE(vch_cr_amt, 0) > 0 THEN COALESCE(vch_cr_amt, 0)
+                    ELSE 0
+                END
+            ) as returns_amount
+        FROM vouchers
+        WHERE company_guid = ?
+            AND company_alterid = ?
+            AND (
+                UPPER(TRIM(vch_type)) = 'CREDIT NOTE'
+                OR UPPER(TRIM(vch_type)) LIKE '%CREDIT NOTE%'
+                OR UPPER(TRIM(vch_type)) LIKE '%SALES RETURN%'
+            )
+            AND (COALESCE(vch_dr_amt, 0) > 0 OR COALESCE(vch_cr_amt, 0) > 0)
+            AND vch_date BETWEEN ? AND ?
+    """
+
+    # Dashboard - Monthly Sales Returns Trend (Credit Notes)
+    MONTHLY_SALES_RETURNS_TREND = """
+        SELECT
+            strftime('%Y-%m', vch_date) as month_key,
+            (
+              CASE strftime('%m', vch_date)
+                WHEN '01' THEN 'Jan'
+                WHEN '02' THEN 'Feb'
+                WHEN '03' THEN 'Mar'
+                WHEN '04' THEN 'Apr'
+                WHEN '05' THEN 'May'
+                WHEN '06' THEN 'Jun'
+                WHEN '07' THEN 'Jul'
+                WHEN '08' THEN 'Aug'
+                WHEN '09' THEN 'Sep'
+                WHEN '10' THEN 'Oct'
+                WHEN '11' THEN 'Nov'
+                WHEN '12' THEN 'Dec'
+                ELSE ''
+              END
+              || ' ' || strftime('%Y', vch_date)
+            ) as month_name,
+            SUM(
+                CASE
+                    WHEN COALESCE(vch_dr_amt, 0) > 0 THEN COALESCE(vch_dr_amt, 0)
+                    WHEN COALESCE(vch_cr_amt, 0) > 0 THEN COALESCE(vch_cr_amt, 0)
+                    ELSE 0
+                END
+            ) as returns_amount,
+            COUNT(DISTINCT COALESCE(NULLIF(TRIM(vch_mst_id), ''), vch_date || '|' || vch_no)) as returns_count
+        FROM vouchers
+        WHERE company_guid = ?
+            AND company_alterid = ?
+            AND (
+                UPPER(TRIM(vch_type)) = 'CREDIT NOTE'
+                OR UPPER(TRIM(vch_type)) LIKE '%CREDIT NOTE%'
+                OR UPPER(TRIM(vch_type)) LIKE '%SALES RETURN%'
+            )
+            AND (COALESCE(vch_dr_amt, 0) > 0 OR COALESCE(vch_cr_amt, 0) > 0)
+            AND vch_date BETWEEN ? AND ?
+        GROUP BY month_key
+        ORDER BY month_key
+    """
+
+    # Dashboard - Daily Sales Trend (for selected period)
+    DAILY_SALES_TREND = """
+        SELECT
+            vch_date as day,
+            SUM(vch_cr_amt) as sales_amount,
+            COUNT(DISTINCT COALESCE(NULLIF(TRIM(vch_mst_id), ''), vch_date || '|' || vch_no)) as sales_count
+        FROM vouchers
+        WHERE company_guid = ?
+            AND company_alterid = ?
+            AND (UPPER(TRIM(vch_type)) = 'SALES' OR UPPER(TRIM(vch_type)) LIKE '%SALES%')
+            AND vch_cr_amt > 0
+            AND vch_date BETWEEN ? AND ?
+        GROUP BY vch_date
+        ORDER BY vch_date
+    """
+
+    # Dashboard - Sales by Weekday (pattern)
+    # weekday_key: 0=Sun ... 6=Sat (SQLite %w)
+    SALES_BY_WEEKDAY = """
+        SELECT
+            CAST(strftime('%w', vch_date) AS INTEGER) as weekday_key,
+            CASE strftime('%w', vch_date)
+                WHEN '0' THEN 'Sun'
+                WHEN '1' THEN 'Mon'
+                WHEN '2' THEN 'Tue'
+                WHEN '3' THEN 'Wed'
+                WHEN '4' THEN 'Thu'
+                WHEN '5' THEN 'Fri'
+                WHEN '6' THEN 'Sat'
+                ELSE 'NA'
+            END as weekday_name,
+            SUM(vch_cr_amt) as sales_amount,
+            COUNT(DISTINCT COALESCE(NULLIF(TRIM(vch_mst_id), ''), vch_date || '|' || vch_no)) as sales_count
+        FROM vouchers
+        WHERE company_guid = ?
+            AND company_alterid = ?
+            AND (UPPER(TRIM(vch_type)) = 'SALES' OR UPPER(TRIM(vch_type)) LIKE '%SALES%')
+            AND vch_cr_amt > 0
+            AND vch_date BETWEEN ? AND ?
+        GROUP BY weekday_key
+        ORDER BY weekday_key
     """
     
     # Dashboard - Top Sales Customers

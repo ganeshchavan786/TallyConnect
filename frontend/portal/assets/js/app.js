@@ -11,6 +11,61 @@ let selectedLedger = null;
 let navigationHistory = [];
 let companiesData = [];
 
+// Branding: set logo source depending on how portal is opened (server vs file protocol)
+document.addEventListener('DOMContentLoaded', function () {
+    try {
+        const isFile = window.location.protocol === 'file:';
+        const logoSrc = isFile ? '../../Logo.png' : '/logo.png';
+        document.querySelectorAll('img.brand-logo').forEach(img => {
+            // Avoid resetting if page provided a different logo explicitly
+            img.src = logoSrc;
+        });
+    } catch (e) {
+        // ignore
+    }
+});
+
+// Build stamp: show exact build version/time in sidebar to avoid confusion
+document.addEventListener('DOMContentLoaded', function () {
+    try {
+        const sidebar = document.querySelector('.sidebar');
+        if (!sidebar) return;
+
+        let el = document.getElementById('buildInfo');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'buildInfo';
+            el.style.marginTop = 'auto';
+            el.style.padding = '12px 10px';
+            el.style.fontSize = '11px';
+            el.style.opacity = '0.85';
+            el.style.color = 'rgba(255,255,255,0.75)';
+            el.style.borderTop = '1px solid rgba(255,255,255,0.12)';
+            el.innerText = '';
+            sidebar.appendChild(el);
+        }
+
+        const isServer = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (!isServer) {
+            el.style.display = 'none';
+            return;
+        }
+
+        fetch('/api/build-info')
+            .then(r => r.ok ? r.json() : null)
+            .then(info => {
+                if (!info) return;
+                const tag = info.git_tag || 'dev';
+                const commit = info.git_commit || 'dev';
+                const at = info.generated_at || '';
+                el.innerText = `Build: ${tag} (${commit})${at ? ` • ${at}` : ''}`;
+            })
+            .catch(() => { /* ignore */ });
+    } catch (e) {
+        // ignore
+    }
+});
+
 // Ledger management state
 let allLedgers = [];
 let filteredLedgers = [];
