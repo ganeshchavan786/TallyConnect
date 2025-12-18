@@ -114,76 +114,117 @@ function renderDashboardReport(data) {
             <div class="tc-tab-panels">
                 <div class="tc-tab-panel tc-tab-panel--active" id="tab-overview">
             
-            <!-- Summary Stats -->
-            <div class="tc-grid tc-grid--3 tc-mb-20">
-                <div class="tc-metric tc-metric--indigo">
-                    <div class="tc-metric__label">Total Transactions</div>
-                    <div class="tc-metric__value">${(data.stats && data.stats.total_transactions) ? data.stats.total_transactions.toLocaleString() : 0}</div>
-                </div>
-                <div class="tc-metric tc-metric--pink">
-                    <div class="tc-metric__label">Total Parties</div>
-                    <div class="tc-metric__value">${(data.stats && data.stats.total_parties) ? data.stats.total_parties.toLocaleString() : 0}</div>
-                </div>
-                <div class="tc-metric tc-metric--cyan">
-                    <div class="tc-metric__label">Net Balance</div>
-                    <div class="tc-metric__value">${formatCurrency((data.stats && data.stats.net_balance) ? data.stats.net_balance : 0)}</div>
-                </div>
-            </div>
-            
-            <!-- Sales Summary Cards -->
-            ${data.sales ? `
-            <div class="tc-mb-20">
-                <h3 class="tc-title-lg tc-mb-12">💰 Sales Metrics (FY ${data.sales.financial_year || 'N/A'})</h3>
-                <div class="tc-grid tc-grid--4 tc-mb-16">
-                    <div class="tc-metric tc-metric--green">
-                        <div class="tc-metric__label">Total Sales Amount</div>
-                        <div class="tc-metric__value">${formatCurrency(data.sales.total_sales_amount || 0)}</div>
-                        <div class="tc-metric__hint">Sales + GST</div>
+            <!-- KPI Strip (pastel tiles, reference-like) -->
+            <div class="tc-kpi-grid">
+                <div class="tc-kpi tc-kpi--mint">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Sales</div>
+                        <div class="tc-kpi__icon">💰</div>
                     </div>
-                    <div class="tc-metric tc-metric--blue">
-                        <div class="tc-metric__label">Total Sales Count</div>
-                        <div class="tc-metric__value">${(data.sales.total_sales_count || 0).toLocaleString()}</div>
-                        <div class="tc-metric__hint">Invoices</div>
-                    </div>
-                    <div class="tc-metric tc-metric--purple">
-                        <div class="tc-metric__label">Avg Sales per Transaction</div>
-                        <div class="tc-metric__value">${formatCurrency(data.sales.avg_sales_per_transaction || 0)}</div>
-                        <div class="tc-metric__hint">Per Invoice</div>
-                    </div>
-                    <div class="tc-metric ${(data.sales.sales_growth_percent || 0) >= 0 ? 'tc-metric--red' : 'tc-metric--amber'}">
-                        <div class="tc-metric__label">Sales Growth</div>
-                        <div class="tc-metric__value">
-                            ${(data.sales.sales_growth_percent || 0) >= 0 ? '↑' : '↓'} ${Math.abs(data.sales.sales_growth_percent || 0).toFixed(1)}%
-                        </div>
-                        <div class="tc-metric__hint">vs Previous FY</div>
-                    </div>
+                    <div class="tc-kpi__value">${formatCurrency((data.sales && data.sales.total_sales_amount) ? data.sales.total_sales_amount : 0)}</div>
+                    <div class="tc-kpi__sub">Sales + GST</div>
                 </div>
 
-                <!-- New: Returns + Net Sales -->
-                <div class="tc-grid tc-grid--4">
-                    <div class="tc-metric tc-metric--red tc-metric--compact">
-                        <div class="tc-metric__label">Sales Returns / Credit Notes</div>
-                        <div class="tc-metric__value">${formatCurrency(data.sales.returns_amount || 0)}</div>
-                        <div class="tc-metric__hint">${(data.sales.returns_count || 0).toLocaleString()} vouchers • ${(data.sales.returns_percent || 0).toFixed(2)}%</div>
+                <div class="tc-kpi tc-kpi--teal">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Net Sales</div>
+                        <div class="tc-kpi__icon">✅</div>
                     </div>
-                    <div class="tc-metric tc-metric--green tc-metric--compact">
-                        <div class="tc-metric__label">Net Sales (Sales - Returns)</div>
-                        <div class="tc-metric__value">${formatCurrency(data.sales.net_sales_amount || 0)}</div>
-                        <div class="tc-metric__hint">FY ${data.sales.financial_year || ''}</div>
+                    <div class="tc-kpi__value">${formatCurrency((data.sales && data.sales.net_sales_amount) ? data.sales.net_sales_amount : 0)}</div>
+                    <div class="tc-kpi__sub">Sales − Returns</div>
+                </div>
+
+                <div class="tc-kpi tc-kpi--rose">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Returns</div>
+                        <div class="tc-kpi__icon">↩️</div>
                     </div>
-                    <div class="tc-metric tc-metric--slate tc-metric--compact">
-                        <div class="tc-metric__label">Best Month</div>
-                        <div id="bestMonthBox" class="tc-metric__value tc-metric__value--sm">-</div>
-                        <div id="bestMonthAmt" class="tc-metric__hint">-</div>
+                    <div class="tc-kpi__value">${formatCurrency((data.sales && data.sales.returns_amount) ? data.sales.returns_amount : 0)}</div>
+                    <div class="tc-kpi__sub">${(data.sales && data.sales.returns_percent) ? (data.sales.returns_percent).toFixed(2) : '0.00'}% of sales</div>
+                </div>
+
+                <div class="tc-kpi tc-kpi--sky">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Invoices</div>
+                        <div class="tc-kpi__icon">🧾</div>
                     </div>
-                    <div class="tc-metric tc-metric--stone tc-metric--compact">
-                        <div class="tc-metric__label">MoM Change</div>
-                        <div id="momChangeBox" class="tc-metric__value">-</div>
-                        <div id="momChangeAmt" class="tc-metric__hint">-</div>
+                    <div class="tc-kpi__value">${(data.sales && data.sales.total_sales_count) ? (data.sales.total_sales_count).toLocaleString() : '0'}</div>
+                    <div class="tc-kpi__sub">Sales count</div>
+                </div>
+
+                <div class="tc-kpi tc-kpi--violet">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Avg / Invoice</div>
+                        <div class="tc-kpi__icon">📊</div>
+                    </div>
+                    <div class="tc-kpi__value">${formatCurrency((data.sales && data.sales.avg_sales_per_transaction) ? data.sales.avg_sales_per_transaction : 0)}</div>
+                    <div class="tc-kpi__sub">Ticket size</div>
+                </div>
+
+                <div class="tc-kpi tc-kpi--amber">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Growth</div>
+                        <div class="tc-kpi__icon">📈</div>
+                    </div>
+                    <div class="tc-kpi__value">${Math.abs((data.sales && data.sales.sales_growth_percent) ? data.sales.sales_growth_percent : 0).toFixed(1)}%</div>
+                    <div class="tc-kpi__sub">
+                        <span class="tc-kpi__badge ${(data.sales && (data.sales.sales_growth_percent || 0) >= 0) ? 'tc-kpi__badge--up' : 'tc-kpi__badge--down'}">
+                            ${(data.sales && (data.sales.sales_growth_percent || 0) >= 0) ? '↑' : '↓'} vs Prev FY
+                        </span>
                     </div>
                 </div>
             </div>
-            ` : ''}
+
+            <div class="tc-kpi-grid" style="grid-template-columns: repeat(6, minmax(0, 1fr)); margin-top: 0;">
+                <div class="tc-kpi tc-kpi--sky">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Transactions</div>
+                        <div class="tc-kpi__icon">🔁</div>
+                    </div>
+                    <div class="tc-kpi__value">${(data.stats && data.stats.total_transactions) ? data.stats.total_transactions.toLocaleString() : 0}</div>
+                    <div class="tc-kpi__sub">All vouchers</div>
+                </div>
+                <div class="tc-kpi tc-kpi--mint">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Parties</div>
+                        <div class="tc-kpi__icon">👥</div>
+                    </div>
+                    <div class="tc-kpi__value">${(data.stats && data.stats.total_parties) ? data.stats.total_parties.toLocaleString() : 0}</div>
+                    <div class="tc-kpi__sub">Unique ledgers</div>
+                </div>
+                <div class="tc-kpi tc-kpi--teal">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Net Balance</div>
+                        <div class="tc-kpi__icon">⚖️</div>
+                    </div>
+                    <div class="tc-kpi__value">${formatCurrency((data.stats && data.stats.net_balance) ? data.stats.net_balance : 0)}</div>
+                    <div class="tc-kpi__sub">Overall</div>
+                </div>
+                <div class="tc-kpi tc-kpi--violet">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Best Month</div>
+                        <div class="tc-kpi__icon">⭐</div>
+                    </div>
+                    <div id="bestMonthBox" class="tc-kpi__value">-</div>
+                    <div id="bestMonthAmt" class="tc-kpi__sub">-</div>
+                </div>
+                <div class="tc-kpi tc-kpi--rose">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">MoM Change</div>
+                        <div class="tc-kpi__icon">🧭</div>
+                    </div>
+                    <div id="momChangeBox" class="tc-kpi__value">-</div>
+                    <div id="momChangeAmt" class="tc-kpi__sub">-</div>
+                </div>
+                <div class="tc-kpi tc-kpi--amber">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">FY</div>
+                        <div class="tc-kpi__icon">📅</div>
+                    </div>
+                    <div class="tc-kpi__value">${(data.sales && data.sales.financial_year) ? data.sales.financial_year : '-'}</div>
+                    <div class="tc-kpi__sub">${(data.sales && data.sales.period_start && data.sales.period_end) ? `${data.sales.period_start} → ${data.sales.period_end}` : ''}</div>
+                </div>
+            </div>
 
                 </div>
                 <div class="tc-tab-panel tc-tab-panel--active" id="tab-trends">

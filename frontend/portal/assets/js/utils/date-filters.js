@@ -14,6 +14,7 @@ class DateFilterManager {
         this.onFilterChange = options.onFilterChange || null;
         this.selectedDateRange = options.defaultDateRange || 'last_30_days';
         this.selectedYear = options.defaultYear || null;
+        this.layout = options.layout || 'bar'; // 'bar' | 'panel'
         this.customStartDate = null;
         this.customEndDate = null;
         this.availableYears = [];
@@ -280,44 +281,30 @@ class DateFilterManager {
         }
         
         return `
-            <div class="date-range-filter" style="position: relative; display: inline-block;">
-                <button type="button" class="date-range-button" id="dateRangeButton" 
-                        style="padding: 8px 16px; border: 1px solid #ddd; border-radius: 4px; 
-                               background: white; cursor: pointer; display: flex; align-items: center; gap: 8px;
-                               font-size: 14px; min-width: 180px; justify-content: space-between;
-                               ${this.selectedYear ? 'opacity: 0.6;' : ''}">
-                    <span style="display: flex; align-items: center; gap: 6px;">
-                        <span>🕐</span>
-                        <span>${currentLabel}</span>
+            <div class="date-range-filter tc-dd">
+                <button type="button" class="date-range-button tc-dd-button ${this.selectedYear ? 'is-disabled' : ''}" id="dateRangeButton" ${this.selectedYear ? 'disabled' : ''}>
+                    <span class="tc-dd-button__left">
+                        <span class="tc-dd-icon">🕐</span>
+                        <span class="tc-dd-label">${currentLabel}</span>
                     </span>
-                    <span>▼</span>
+                    <span class="tc-dd-caret">▼</span>
                 </button>
-                <div class="date-range-dropdown" id="dateRangeDropdown" 
-                     style="display: none; position: absolute; top: 100%; left: 0; margin-top: 4px;
-                            background: white; border: 1px solid #ddd; border-radius: 4px;
-                            box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; min-width: 200px;
-                            padding: 8px 0;">
+                <div class="date-range-dropdown tc-dd-dropdown" id="dateRangeDropdown">
                     ${dateRangeOptions.map(opt => `
-                        <label style="display: flex; align-items: center; padding: 8px 16px; cursor: pointer;
-                                     ${opt.value === this.selectedDateRange ? 'background: #f0f0f0;' : ''}
-                                     hover:background: #f5f5f5;">
-                            <input type="radio" name="dateRange" value="${opt.value}" 
-                                   ${opt.value === this.selectedDateRange ? 'checked' : ''}
-                                   style="margin-right: 8px;">
+                        <label class="tc-dd-option ${opt.value === this.selectedDateRange ? 'is-active' : ''}">
+                            <input type="radio" name="dateRange" value="${opt.value}" ${opt.value === this.selectedDateRange ? 'checked' : ''}>
                             <span>${opt.label}</span>
                         </label>
                     `).join('')}
                     ${this.selectedDateRange === 'custom' ? `
-                        <div style="padding: 16px; border-top: 1px solid #eee;">
-                            <div style="margin-bottom: 12px;">
-                                <label style="display: block; margin-bottom: 4px; font-size: 12px; color: #666;">Start Date:</label>
-                                <input type="date" id="customStartDate" value="${this.customStartDate || ''}" 
-                                       style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                        <div class="tc-dd-custom">
+                            <div class="tc-mb-12">
+                                <label class="tc-label" for="customStartDate">Start Date</label>
+                                <input type="date" id="customStartDate" value="${this.customStartDate || ''}" class="tc-input">
                             </div>
                             <div>
-                                <label style="display: block; margin-bottom: 4px; font-size: 12px; color: #666;">End Date:</label>
-                                <input type="date" id="customEndDate" value="${this.customEndDate || ''}" 
-                                       style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                                <label class="tc-label" for="customEndDate">End Date</label>
+                                <input type="date" id="customEndDate" value="${this.customEndDate || ''}" class="tc-input">
                             </div>
                         </div>
                     ` : ''}
@@ -343,37 +330,25 @@ class DateFilterManager {
         const currentLabel = this.selectedYear ? `FY ${this.selectedYear}-${String(parseInt(this.selectedYear) + 1).slice(-2)}` : '- Any -';
         
         return `
-            <div class="year-filter" style="position: relative; display: inline-block;">
-                <button type="button" class="year-filter-button" id="yearFilterButton" 
-                        style="padding: 8px 16px; border: 1px solid #ddd; border-radius: 4px; 
-                               background: white; cursor: pointer; display: flex; align-items: center; gap: 8px;
-                               font-size: 14px; min-width: 150px; justify-content: space-between;">
-                    <span>${currentLabel}</span>
-                    <span>▼</span>
+            <div class="year-filter tc-dd">
+                <button type="button" class="year-filter-button tc-dd-button" id="yearFilterButton">
+                    <span class="tc-dd-button__left">
+                        <span class="tc-dd-icon">📅</span>
+                        <span class="tc-dd-label">${currentLabel}</span>
+                    </span>
+                    <span class="tc-dd-caret">▼</span>
                 </button>
-                <div class="year-filter-dropdown" id="yearFilterDropdown" 
-                     style="display: none; position: absolute; top: 100%; left: 0; margin-top: 4px;
-                            background: white; border: 1px solid #ddd; border-radius: 4px;
-                            box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 1000; min-width: 200px;
-                            max-height: 300px; overflow-y: auto;">
-                    <div style="padding: 8px; border-bottom: 1px solid #eee;">
-                        <input type="text" id="yearSearchInput" placeholder="Search" 
-                               style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;
-                                      font-size: 14px;">
+                <div class="year-filter-dropdown tc-dd-dropdown" id="yearFilterDropdown">
+                    <div class="tc-dd-search">
+                        <input type="text" id="yearSearchInput" placeholder="Search FY" class="tc-input">
                     </div>
-                    <label class="year-filter-option" data-year="" 
-                           style="display: flex; align-items: center; padding: 8px 16px; cursor: pointer;
-                                  ${!this.selectedYear ? 'background: #0066cc; color: white;' : 'hover:background: #f5f5f5;'}
-                                  border-bottom: 1px solid #eee;">
-                        <span style="margin-right: 8px;">○</span>
+                    <label class="year-filter-option tc-dd-option ${!this.selectedYear ? 'is-active' : ''}" data-year="">
+                        <span>○</span>
                         <span>- Any -</span>
                     </label>
                     ${years.map(year => `
-                        <label class="year-filter-option" data-year="${year}" 
-                               style="display: flex; align-items: center; padding: 8px 16px; cursor: pointer;
-                                      ${this.selectedYear == year ? 'background: #0066cc; color: white;' : 'hover:background: #f5f5f5;'}
-                                      border-bottom: 1px solid #eee;">
-                            <span style="margin-right: 8px;">${this.selectedYear == year ? '●' : '○'}</span>
+                        <label class="year-filter-option tc-dd-option ${this.selectedYear == year ? 'is-active' : ''}" data-year="${year}">
+                            <span>${this.selectedYear == year ? '●' : '○'}</span>
                             <span>FY ${year}-${String(year + 1).slice(-2)}</span>
                         </label>
                     `).join('')}
@@ -423,18 +398,39 @@ class DateFilterManager {
             // ignore
         }
         
-        container.innerHTML = `
-            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
-                <div style="font-weight: 600; color: #2c3e50;">Filters:</div>
-                ${this.renderDateRangeFilter()}
-                ${this.renderYearFilter()}
-            </div>
-            <div id="periodSummary" style="margin-top: -10px; margin-bottom: 12px; font-size: 12px; color: #6c757d;">
-                <strong style="color:#2c3e50;">Period:</strong>
-                ${periodLabel ? `${periodLabel} • ` : ''}
-                ${periodStart && periodEnd ? `${periodStart} → ${periodEnd}` : ''}
-            </div>
-        `;
+        if (this.layout === 'panel') {
+            container.innerHTML = `
+                <div class="tc-panel tc-filter-panel">
+                    <div class="tc-filter-panel__title">FILTERS</div>
+                    <div class="tc-filter-panel__group">
+                        <div class="tc-filter-panel__label">Period</div>
+                        ${this.renderDateRangeFilter().replaceAll('tc-dd-button', 'tc-dd-button tc-dd-button--compact')}
+                    </div>
+                    <div class="tc-filter-panel__group">
+                        <div class="tc-filter-panel__label">Financial Year</div>
+                        ${this.renderYearFilter().replaceAll('tc-dd-button', 'tc-dd-button tc-dd-button--compact')}
+                    </div>
+                    <div id="periodSummary" class="tc-filter-panel__summary">
+                        <strong>Period:</strong>
+                        ${periodLabel ? `${periodLabel} • ` : ''}
+                        ${periodStart && periodEnd ? `${periodStart} → ${periodEnd}` : ''}
+                    </div>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="tc-filterbar-row">
+                    <div class="tc-filterbar-title">Filters</div>
+                    ${this.renderDateRangeFilter()}
+                    ${this.renderYearFilter()}
+                </div>
+                <div id="periodSummary" class="tc-filterbar-summary">
+                    <strong>Period:</strong>
+                    ${periodLabel ? `${periodLabel} • ` : ''}
+                    ${periodStart && periodEnd ? `${periodStart} → ${periodEnd}` : ''}
+                </div>
+            `;
+        }
         
         this.attachEventListeners();
     }

@@ -4,7 +4,7 @@
 
 [Setup]
 AppName=TallyConnect
-AppVersion=5.6
+AppVersion=1.5.2
 AppPublisher=Vrushali Infotech Pvt Ltd
 AppPublisherURL=
 AppSupportURL=
@@ -13,7 +13,7 @@ DefaultDirName={localappdata}\Programs\TallyConnect
 DefaultGroupName=TallyConnect
 UninstallDisplayIcon={app}\TallyConnect.exe
 OutputDir=..\dist
-OutputBaseFilename=TallyConnectSetup_v5.6
+OutputBaseFilename=TallyConnectSetup_v1.5.2
 Compression=lzma2/ultra64
 SolidCompression=yes
 ArchitecturesAllowed=x64

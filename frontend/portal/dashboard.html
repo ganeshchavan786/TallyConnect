@@ -51,12 +51,19 @@
     <div class="main-content">
         <div class="page active">
             <a href="reports.html" class="back-button">← Back to Reports</a>
-            <!-- Filter Container -->
-            <div id="filterContainer" class="tc-panel tc-filterbar"></div>
-            <div id="reportContent" class="report-viewer">
-                <div class="tc-loading">
-                    <div class="spinner" style="margin: 20px auto;"></div>
-                    <div class="tc-loading__text">Loading dashboard...</div>
+            <div class="tc-dashboard-layout">
+                <!-- Filters Panel -->
+                <div class="tc-dashboard-filters">
+                    <div id="filterContainer"></div>
+                </div>
+                <!-- Dashboard Content -->
+                <div class="tc-dashboard-content">
+                    <div id="reportContent" class="report-viewer">
+                        <div class="tc-loading">
+                            <div class="spinner" style="margin: 20px auto;"></div>
+                            <div class="tc-loading__text">Loading dashboard...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -103,6 +110,7 @@
                     containerId: 'filterContainer',
                     defaultDateRange: 'current_financial_year',
                     defaultYear: defaultFYStartYear,
+                    layout: 'panel',
                     onFilterChange: function(filterParams) {
                         // Reload dashboard with new filter parameters
                         reloadDashboardWithFilters(filterParams);

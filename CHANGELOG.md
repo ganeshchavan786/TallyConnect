@@ -20,6 +20,11 @@ All notable changes to this project will be documented in this file.
   - Daily Sales Trend + Sales by Weekday charts
   - Excel-like slicers (Month + Weekday) for interactive filtering
   - Multi-tab dashboard: Overview / Trends / Customers / Returns / Accounts
+- **Design refresh (Light green + Dark mode)**
+  - Light green dashboard theme (reference-style)
+  - Dark mode ON/OFF toggle in sidebar (persists)
+  - Dashboard layout: left filters panel + main content
+  - Pastel KPI strip with icons (reference-like)
 - **Build visibility**
   - `build_info.json` generated during build and displayed in Desktop app + Portal sidebar
   - Portal API endpoint `/api/build-info`
