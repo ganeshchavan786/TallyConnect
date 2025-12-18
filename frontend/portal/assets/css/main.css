@@ -9,28 +9,82 @@
     box-sizing: border-box;
 }
 
+:root {
+    /* Brand / Theme */
+    /* Light green style (default) */
+    --bg: #f3fbf7;
+    --surface: #ffffff;
+    --surface-2: #eef8f3;
+    --text: #0b1220;
+    --muted: #5b6b7f;
+    --muted-2: #93a4b7;
+    --border: rgba(15, 23, 42, 0.10);
+
+    /* Accent */
+    --primary: #10b981;        /* emerald */
+    --primary-2: #059669;      /* emerald dark */
+    --primary-rgb: 16, 185, 129;
+    --primary-2-rgb: 5, 150, 105;
+
+    --success: #16a34a;
+    --danger: #dc2626;
+    --warning: #f59e0b;
+
+    /* Sidebar */
+    --sidebar-base: #0b2b22;
+    --sidebar-glow-1: rgba(16, 185, 129, 0.30);
+    --sidebar-glow-2: rgba(34, 197, 94, 0.18);
+
+    /* Effects */
+    --radius: 14px;
+    --radius-sm: 10px;
+    --shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.08);
+    --shadow: 0 14px 40px rgba(15, 23, 42, 0.10);
+    --ring: 0 0 0 4px rgba(var(--primary-rgb), 0.16);
+}
+
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: #f0f2f5;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+    background: radial-gradient(1200px 600px at 16% 0%, rgba(var(--primary-rgb), 0.12), transparent 60%),
+                radial-gradient(900px 500px at 92% 10%, rgba(34, 197, 94, 0.10), transparent 55%),
+                var(--bg);
     display: flex;
     height: 100vh;
     overflow: hidden;
+    color: var(--text);
+}
+
+a, a:visited {
+    color: inherit;
 }
 
 /* Typography */
 .page-title {
     font-size: 28px;
-    color: #2c3e50;
-    margin-bottom: 20px;
-    padding-bottom: 10px;
-    border-bottom: 3px solid #3498db;
+    color: var(--text);
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 0;
+    position: relative;
+    letter-spacing: 0.2px;
+}
+
+.page-title::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 140px;
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--primary), rgba(var(--primary-rgb), 0.20));
 }
 
 /* Loading States */
 .loading {
     text-align: center;
     padding: 50px;
-    color: #7f8c8d;
+    color: var(--muted);
 }
 
 .loading-overlay {
@@ -39,7 +93,8 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(6px);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -48,15 +103,78 @@ body {
 
 .spinner {
     border: 4px solid #f3f3f3;
-    border-top: 4px solid #3498db;
+    border-top: 4px solid var(--primary);
     border-radius: 50%;
     width: 40px;
     height: 40px;
     animation: spin 1s linear infinite;
 }
 
+/* Dark mode (toggle) */
+html[data-theme="dark"] {
+    --bg: #07120f;
+    --surface: #0b1620;
+    --surface-2: #0f1f29;
+    --text: #e6f1ff;
+    --muted: rgba(230, 241, 255, 0.70);
+    --muted-2: rgba(230, 241, 255, 0.55);
+    --border: rgba(230, 241, 255, 0.12);
+
+    --shadow-sm: 0 10px 26px rgba(0, 0, 0, 0.35);
+    --shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+
+    --sidebar-base: #07120f;
+    --sidebar-glow-1: rgba(16, 185, 129, 0.20);
+    --sidebar-glow-2: rgba(34, 197, 94, 0.10);
+}
+
+html[data-theme="dark"] body {
+    background: radial-gradient(1200px 600px at 16% 0%, rgba(var(--primary-rgb), 0.14), transparent 60%),
+                radial-gradient(900px 500px at 92% 10%, rgba(34, 197, 94, 0.10), transparent 55%),
+                var(--bg);
+}
+
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* Nice scrollbars (Chromium/Edge) */
+*::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.35);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.55);
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+/* Motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Dashboard slicer micro-interactions */
+#salesSlicers button {
+    transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+#salesSlicers button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.10);
+    filter: brightness(1.02);
 }
 

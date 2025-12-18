@@ -4,6 +4,15 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    .sidebar {
+        width: 240px;
+        padding: 16px;
+    }
+
+    .main-content {
+        padding: 16px;
+    }
+
     .controls-row {
         flex-direction: column;
     }

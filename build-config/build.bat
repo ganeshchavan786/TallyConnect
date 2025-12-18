@@ -30,13 +30,19 @@ if errorlevel 1 (
 )
 
 echo.
-echo [2/4] Cleaning previous build...
+echo [2/5] Preparing branding (Logo.png -> .ico)...
+cd /d "%~dp0\.."
+python scripts\generate_windows_icons.py --input Logo.png --out build-config\TallyConnect.ico >nul 2>&1
+python scripts\write_build_info.py >nul 2>&1
+
+echo.
+echo [3/5] Cleaning previous build...
 cd /d "%~dp0\.."
 if exist "build" rmdir /s /q "build"
 if exist "dist\TallyConnect.exe" del /q "dist\TallyConnect.exe"
 
 echo.
-echo [3/5] Building TallyConnect.exe...
+echo [4/5] Building TallyConnect.exe...
 python -m PyInstaller --clean --noconfirm build-config/TallyConnect.spec
 
 if not exist "dist\TallyConnect.exe" (
@@ -48,9 +54,12 @@ if not exist "dist\TallyConnect.exe" (
 echo.
 echo [SUCCESS] TallyConnect.exe created successfully!
 echo Location: dist\TallyConnect.exe
+if exist "build-config\TallyConnect.ico" (
+    copy /y "build-config\TallyConnect.ico" "dist\TallyConnect.ico" >nul
+)
 
 echo.
-echo [4/5] Building TallyConnectPortal.exe...
+echo [5/5] Building TallyConnectPortal.exe...
 python -m PyInstaller --clean --noconfirm build-config/TallyConnectPortal.spec
 
 if not exist "dist\TallyConnectPortal.exe" (
@@ -61,7 +70,7 @@ if not exist "dist\TallyConnectPortal.exe" (
 )
 
 echo.
-echo [5/5] Would you like to create installer? (Requires Inno Setup)
+echo [OPTIONAL] Would you like to create installer? (Requires Inno Setup)
 echo Press Y to create installer, or any other key to skip...
 choice /c YN /n /m "Create installer? (Y/N): "
 

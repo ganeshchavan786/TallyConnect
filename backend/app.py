@@ -23,6 +23,7 @@ from datetime import datetime, timedelta
 import traceback
 import os
 import re
+import sys
 try:
     import pystray
     from PIL import Image, ImageDraw
@@ -47,6 +48,27 @@ from backend.utils.sync_logger import get_sync_logger
 from backend.utils.validators import (
     validate_sync_params, CompanyValidator, DateValidator, ValidationError
 )
+
+def _load_build_info():
+    """Load build_info.json if present (generated during build)."""
+    try:
+        base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        candidates = [
+            os.path.join(base_dir, "build_info.json"),
+        ]
+        # In PyInstaller, additional data can be under _MEIPASS; try there too.
+        try:
+            candidates.append(os.path.join(sys._MEIPASS, "build_info.json"))  # type: ignore[attr-defined]
+        except Exception:
+            pass
+        for p in candidates:
+            if p and os.path.exists(p):
+                import json
+                with open(p, "r", encoding="utf-8") as f:
+                    return json.load(f)
+    except Exception:
+        pass
+    return {"generated_at": "unknown", "git_tag": "dev", "git_commit": "dev"}
 
 def try_connect_dsn(dsn_name, timeout=5):
     """Try to connect to Tally DSN."""
@@ -75,6 +97,12 @@ class BizAnalystApp:
             pass
         self.root.title("TallyConnect v5.6 — Modern Tally Sync Platform")
         self.root.geometry("1200x750")
+
+        # Apply window icon/logo (uses Logo.png if present)
+        try:
+            self._apply_window_logo()
+        except Exception:
+            pass
         
         # Theme System - Using config module
         self.themes = THEMES
@@ -156,12 +184,64 @@ class BizAnalystApp:
         
         self.title_frame = tk.Frame(self.header, bg=self.colors["header"])
         self.title_frame.pack(side=tk.LEFT, padx=24, pady=12)
-        self.title_label = tk.Label(self.title_frame, text="📊 TALLYCONNECT", fg="white", bg=self.colors["header"],
-                 font=("Segoe UI", 22, "bold"))
-        self.title_label.pack(anchor="w")
-        self.subtitle_label = tk.Label(self.title_frame, text="Modern Tally Sync Platform", fg="#95a5a6", bg=self.colors["header"],
-                 font=("Segoe UI", 10))
-        self.subtitle_label.pack(anchor="w")
+
+        # Header brand row (Logo.png + text). Fallback to text-only if image not available.
+        brand_row = tk.Frame(self.title_frame, bg=self.colors["header"])
+        brand_row.pack(anchor="w")
+
+        header_logo_img = None
+        try:
+            header_logo_img = self._load_brand_image(size=(52, 52))
+        except Exception:
+            header_logo_img = None
+
+        if header_logo_img is not None:
+            self._header_logo_image = header_logo_img  # keep reference
+            self.header_logo_label = tk.Label(
+                brand_row,
+                image=self._header_logo_image,
+                bg=self.colors["header"],
+                bd=0,
+                highlightthickness=0,
+            )
+            self.header_logo_label.pack(side=tk.LEFT, padx=(0, 12))
+
+            text_col = tk.Frame(brand_row, bg=self.colors["header"])
+            text_col.pack(side=tk.LEFT)
+            self.title_label = tk.Label(
+                text_col,
+                text="TALLYCONNECT",
+                fg="white",
+                bg=self.colors["header"],
+                font=("Segoe UI", 22, "bold"),
+            )
+            self.title_label.pack(anchor="w")
+            self.subtitle_label = tk.Label(
+                text_col,
+                text="Modern Tally Sync Platform",
+                fg="#95a5a6",
+                bg=self.colors["header"],
+                font=("Segoe UI", 10),
+            )
+            self.subtitle_label.pack(anchor="w")
+        else:
+            # Text-only fallback
+            self.title_label = tk.Label(
+                brand_row,
+                text="📊 TALLYCONNECT",
+                fg="white",
+                bg=self.colors["header"],
+                font=("Segoe UI", 22, "bold"),
+            )
+            self.title_label.pack(anchor="w")
+            self.subtitle_label = tk.Label(
+                self.title_frame,
+                text="Modern Tally Sync Platform",
+                fg="#95a5a6",
+                bg=self.colors["header"],
+                font=("Segoe UI", 10),
+            )
+            self.subtitle_label.pack(anchor="w")
         
         self.status_frame = tk.Frame(self.header, bg=self.colors["header"])
         self.status_frame.pack(side=tk.RIGHT, padx=24, pady=12)
@@ -206,7 +286,16 @@ class BizAnalystApp:
         self.theme_dropdown.pack(side=tk.RIGHT, padx=4)
         self.theme_dropdown.bind("<<ComboboxSelected>>", lambda e: self.apply_theme())
         
-        tk.Label(toolbar_content, text="v5.6 Pro", bg="white", fg="#95a5a6", 
+        # Build stamp (helps identify exactly which EXE is running)
+        try:
+            bi = _load_build_info()
+            build_text = f"{bi.get('git_tag','dev')} ({bi.get('git_commit','dev')})"
+            if bi.get("generated_at"):
+                build_text += f" • {bi.get('generated_at')}"
+        except Exception:
+            build_text = "dev"
+
+        tk.Label(toolbar_content, text=f"v5.6 Pro • {build_text}", bg="white", fg="#95a5a6",
                 font=("Segoe UI", 9, "italic")).pack(side=tk.RIGHT, padx=12)
 
         # ========== MAIN CONTENT AREA ==========
@@ -2121,12 +2210,43 @@ Keyboard Shortcuts:
         """Setup system tray icon."""
         if not TRAY_AVAILABLE:
             return
+
+        def _get_base_dir():
+            if getattr(sys, 'frozen', False):
+                return os.path.dirname(sys.executable)
+            return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        def _get_resource_dir():
+            if getattr(sys, 'frozen', False):
+                try:
+                    return sys._MEIPASS
+                except Exception:
+                    return os.path.dirname(sys.executable)
+            return _get_base_dir()
         
         def create_icon():
-            # Create a 64x64 image with blue background
+            # Prefer Logo.png (supports transparency). Fallback to generated icon.
+            try:
+                logo_candidates = [
+                    os.path.join(_get_base_dir(), "Logo.png"),
+                    os.path.join(_get_resource_dir(), "Logo.png"),
+                ]
+                for p in logo_candidates:
+                    if os.path.exists(p):
+                        img = Image.open(p).convert("RGBA")
+                        # center-crop to square then resize to tray size
+                        w, h = img.size
+                        side = min(w, h)
+                        left = (w - side) // 2
+                        top = (h - side) // 2
+                        img = img.crop((left, top, left + side, top + side))
+                        img = img.resize((64, 64))
+                        return img
+            except Exception:
+                pass
+
             image = Image.new('RGB', (64, 64), color='#3498db')
             draw = ImageDraw.Draw(image)
-            # Draw a simple "T" for TallyConnect
             draw.text((32, 32), "T", fill='white', anchor="mm")
             return image
         
@@ -2172,6 +2292,89 @@ Keyboard Shortcuts:
         
         self.tray_thread = threading.Thread(target=run_tray, daemon=True)
         self.tray_thread.start()
+
+    def _apply_window_logo(self):
+        """Set the Tk window icon from Logo.png (works in script + EXE)."""
+        try:
+            from PIL import Image, ImageTk
+        except Exception:
+            return
+
+        def _get_base_dir():
+            if getattr(sys, 'frozen', False):
+                return os.path.dirname(sys.executable)
+            return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        def _get_resource_dir():
+            if getattr(sys, 'frozen', False):
+                try:
+                    return sys._MEIPASS
+                except Exception:
+                    return os.path.dirname(sys.executable)
+            return _get_base_dir()
+
+        # Prefer .ico for Windows taskbar/titlebar where supported
+        ico_candidates = [
+            os.path.join(_get_base_dir(), "TallyConnect.ico"),
+            os.path.join(_get_base_dir(), "build-config", "TallyConnect.ico"),
+        ]
+        ico_path = next((p for p in ico_candidates if os.path.exists(p)), None)
+        if ico_path:
+            try:
+                self.root.iconbitmap(ico_path)
+            except Exception:
+                pass
+
+        logo_candidates = [
+            os.path.join(_get_base_dir(), "Logo.png"),
+            os.path.join(_get_resource_dir(), "Logo.png"),
+        ]
+        logo_path = next((p for p in logo_candidates if os.path.exists(p)), None)
+        if not logo_path:
+            return
+
+        img = Image.open(logo_path).convert("RGBA")
+        # Use a small size for window icon
+        img = img.resize((64, 64))
+        self._tk_logo_image = ImageTk.PhotoImage(img)  # keep reference
+        try:
+            self.root.iconphoto(True, self._tk_logo_image)
+        except Exception:
+            pass
+
+    def _load_brand_image(self, size=(52, 52)):
+        """Load Logo.png as a Tk PhotoImage (scaled square)."""
+        from PIL import Image, ImageTk
+
+        def _get_base_dir():
+            if getattr(sys, 'frozen', False):
+                return os.path.dirname(sys.executable)
+            return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        def _get_resource_dir():
+            if getattr(sys, 'frozen', False):
+                try:
+                    return sys._MEIPASS
+                except Exception:
+                    return os.path.dirname(sys.executable)
+            return _get_base_dir()
+
+        logo_candidates = [
+            os.path.join(_get_base_dir(), "Logo.png"),
+            os.path.join(_get_resource_dir(), "Logo.png"),
+        ]
+        logo_path = next((p for p in logo_candidates if os.path.exists(p)), None)
+        if not logo_path:
+            return None
+
+        img = Image.open(logo_path).convert("RGBA")
+        w, h = img.size
+        side = min(w, h)
+        left = (w - side) // 2
+        top = (h - side) // 2
+        img = img.crop((left, top, left + side, top + side))
+        img = img.resize(size)
+        return ImageTk.PhotoImage(img)
     
     def on_close(self):
         """Handle window close - minimize to tray instead of closing."""

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - TallyConnect</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     
     <!-- CSS Files -->
     <link rel="stylesheet" href="assets/css/main.css">
@@ -16,8 +17,13 @@
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="logo">
-            <h1>📊 TallyConnect</h1>
-            <p>Report Portal</p>
+            <div class="brand">
+                <img class="brand-logo" src="/logo.png" alt="Logo" onerror="this.style.display='none'">
+                <div>
+                    <div class="brand-title">TallyConnect</div>
+                    <div class="brand-subtitle">Report Portal</div>
+                </div>
+            </div>
         </div>
         <ul class="nav-menu">
             <li class="nav-item">
@@ -45,12 +51,19 @@
     <div class="main-content">
         <div class="page active">
             <a href="reports.html" class="back-button">← Back to Reports</a>
-            <!-- Filter Container -->
-            <div id="filterContainer" style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;"></div>
-            <div id="reportContent" class="report-viewer">
-                <div style="text-align: center; padding: 50px;">
-                    <div class="spinner" style="margin: 20px auto;"></div>
-                    <div style="color: #3498db; font-size: 18px; margin: 20px 0;">Loading dashboard...</div>
+            <div class="tc-dashboard-layout">
+                <!-- Filters Panel -->
+                <div class="tc-dashboard-filters">
+                    <div id="filterContainer"></div>
+                </div>
+                <!-- Dashboard Content -->
+                <div class="tc-dashboard-content">
+                    <div id="reportContent" class="report-viewer">
+                        <div class="tc-loading">
+                            <div class="spinner" style="margin: 20px auto;"></div>
+                            <div class="tc-loading__text">Loading dashboard...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -78,11 +91,26 @@
             const savedCompany = sessionStorage.getItem('selectedCompany');
             if (savedCompany) {
                 selectedCompany = JSON.parse(savedCompany);
+
+                // If company name contains FY like "F.Y. 21-22", default dashboard to that FY
+                let defaultFYStartYear = null;
+                try {
+                    const name = (selectedCompany && selectedCompany.name) ? String(selectedCompany.name) : '';
+                    const m = name.match(/F\\.?Y\\.?\\s*(\\d{2})\\s*-\\s*(\\d{2})/i);
+                    if (m) {
+                        const yy = parseInt(m[1], 10);
+                        defaultFYStartYear = 2000 + yy; // 21 => 2021
+                    }
+                } catch (e) {
+                    defaultFYStartYear = null;
+                }
                 
                 // Initialize date filter manager
                 dashboardDateFilter = new DateFilterManager({
                     containerId: 'filterContainer',
                     defaultDateRange: 'current_financial_year',
+                    defaultYear: defaultFYStartYear,
+                    layout: 'panel',
                     onFilterChange: function(filterParams) {
                         // Reload dashboard with new filter parameters
                         reloadDashboardWithFilters(filterParams);

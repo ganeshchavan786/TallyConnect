@@ -11,6 +11,105 @@ let selectedLedger = null;
 let navigationHistory = [];
 let companiesData = [];
 
+// Branding: set logo source depending on how portal is opened (server vs file protocol)
+document.addEventListener('DOMContentLoaded', function () {
+    try {
+        const isFile = window.location.protocol === 'file:';
+        const logoSrc = isFile ? '../../Logo.png' : '/logo.png';
+        document.querySelectorAll('img.brand-logo').forEach(img => {
+            // Avoid resetting if page provided a different logo explicitly
+            img.src = logoSrc;
+        });
+    } catch (e) {
+        // ignore
+    }
+});
+
+// Theme (Light green default + Dark mode toggle)
+document.addEventListener('DOMContentLoaded', function () {
+    try {
+        const key = 'tc_theme';
+        const saved = localStorage.getItem(key);
+        const theme = saved === 'dark' ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+
+        const sidebar = document.querySelector('.sidebar');
+        const logo = document.querySelector('.logo');
+        if (!sidebar || !logo) return;
+
+        let toggle = document.getElementById('themeToggle');
+        if (!toggle) {
+            toggle = document.createElement('div');
+            toggle.id = 'themeToggle';
+            toggle.className = 'tc-theme-toggle';
+            toggle.innerHTML = `
+                <div class="tc-theme-toggle__label">Dark</div>
+                <button type="button" class="tc-switch" aria-label="Toggle dark mode">
+                    <span class="tc-switch__knob"></span>
+                </button>
+            `;
+            logo.appendChild(toggle);
+        }
+
+        const btn = toggle.querySelector('.tc-switch');
+        if (!btn) return;
+
+        const apply = (t) => {
+            document.documentElement.dataset.theme = t;
+            localStorage.setItem(key, t);
+            btn.classList.toggle('is-on', t === 'dark');
+        };
+
+        apply(theme);
+        btn.addEventListener('click', () => {
+            const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+            apply(next);
+        });
+    } catch (e) {
+        // ignore
+    }
+});
+
+// Build stamp: show exact build version/time in sidebar to avoid confusion
+document.addEventListener('DOMContentLoaded', function () {
+    try {
+        const sidebar = document.querySelector('.sidebar');
+        if (!sidebar) return;
+
+        let el = document.getElementById('buildInfo');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'buildInfo';
+            el.className = 'tc-build-info';
+            el.innerText = '';
+            sidebar.appendChild(el);
+        } else {
+            el.className = 'tc-build-info';
+            // clear legacy inline styles (so theme can style it)
+            el.removeAttribute('style');
+        }
+
+        const isServer = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (!isServer) {
+            el.style.display = 'none';
+            return;
+        }
+
+        fetch('/api/build-info')
+            .then(r => r.ok ? r.json() : null)
+            .then(info => {
+                if (!info) return;
+                const tag = info.git_tag || 'dev';
+                const commit = info.git_commit || 'dev';
+                const at = info.generated_at || '';
+                el.innerText = `Build: ${tag} (${commit})${at ? ` • ${at}` : ''}`;
+            })
+            .catch(() => { /* ignore */ });
+    } catch (e) {
+        // ignore
+    }
+});
+
 // Ledger management state
 let allLedgers = [];
 let filteredLedgers = [];

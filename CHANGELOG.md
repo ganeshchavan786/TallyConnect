@@ -10,6 +10,28 @@ All notable changes to this project will be documented in this file.
   - `created_at` is now stored in local time to match UI/date-based filtering (fixes “today logs not showing” in some cases)
   - Ignored runtime SQLite artifacts (`*.db-wal`, `*.db-shm`) and `sync_logs_backup.jsonl` via `.gitignore`
 
+## [1.5.2] - 2025-12-18
+
+### Added
+- **Sales Dashboard upgrades (accounting-only)**
+  - Financial-year aware dashboard rendering + clear Period (From → To) display
+  - Monthly Sales Trend label fixes (SQLite-safe month names)
+  - Sales Returns / Credit Notes metrics + monthly returns trend chart
+  - Daily Sales Trend + Sales by Weekday charts
+  - Excel-like slicers (Month + Weekday) for interactive filtering
+  - Multi-tab dashboard: Overview / Trends / Customers / Returns / Accounts
+- **Design refresh (Light green + Dark mode)**
+  - Light green dashboard theme (reference-style)
+  - Dark mode ON/OFF toggle in sidebar (persists)
+  - Dashboard layout: left filters panel + main content
+  - Pastel KPI strip with icons (reference-like)
+- **Build visibility**
+  - `build_info.json` generated during build and displayed in Desktop app + Portal sidebar
+  - Portal API endpoint `/api/build-info`
+- **UI / UX**
+  - Premium theme refresh (typography, spacing, sidebar, cards)
+  - Refactored dashboard + ledger report UI to reusable CSS classes (reduced inline styles)
+
 ## [1.5.0] - 2025-12-17
 
 ### Fixed

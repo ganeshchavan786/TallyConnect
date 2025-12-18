@@ -59,6 +59,26 @@ DB_FILE = os.path.join(get_base_dir(), "TallyConnectDb.db")
 PORT = 8000
 PORTAL_DIR = os.path.join(RESOURCE_DIR, "frontend", "portal")
 
+def load_build_info():
+    """Load build_info.json generated during build (if present)."""
+    candidates = []
+    try:
+        candidates.append(os.path.join(get_base_dir(), "build_info.json"))
+    except Exception:
+        pass
+    try:
+        candidates.append(os.path.join(RESOURCE_DIR, "build_info.json"))
+    except Exception:
+        pass
+    for p in candidates:
+        try:
+            if p and os.path.exists(p):
+                with open(p, "r", encoding="utf-8") as f:
+                    return json.load(f)
+        except Exception:
+            continue
+    return {"generated_at": "unknown", "git_tag": "dev", "git_commit": "dev"}
+
 def is_port_in_use(port):
     """Check if a port is already in use."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -101,6 +121,11 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
         if path.startswith('/api/'):
             self.handle_api(path, parsed_path)
         else:
+            # Branding assets (serve from app folder or bundled resources)
+            if path in ('/logo.png', '/favicon.ico'):
+                self.send_brand_asset(path)
+                return
+
             # Serve static files
             # Update path to remove leading slash for file system
             file_path = path.lstrip('/')
@@ -141,6 +166,49 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             else:
                 # File not found
                 self.send_error(404, f"File not found: {path}")
+
+    def send_brand_asset(self, path: str):
+        """Serve logo/favicon from base dir or bundled resource dir."""
+        try:
+            if path == '/logo.png':
+                candidates = [
+                    os.path.join(get_base_dir(), 'Logo.png'),
+                    os.path.join(RESOURCE_DIR, 'Logo.png'),
+                ]
+                content_type = 'image/png'
+            else:  # /favicon.ico
+                candidates = [
+                    os.path.join(get_base_dir(), 'TallyConnect.ico'),
+                    os.path.join(get_base_dir(), 'TallyConnect.ico'.lower()),
+                    os.path.join(get_base_dir(), 'Logo.ico'),
+                    os.path.join(RESOURCE_DIR, 'TallyConnect.ico'),
+                ]
+                content_type = 'image/x-icon'
+
+            file_path = next((p for p in candidates if os.path.exists(p) and os.path.isfile(p)), None)
+            # Fallback: if favicon.ico not found, serve Logo.png (browser still shows it in most cases)
+            if not file_path and path == '/favicon.ico':
+                png_candidates = [
+                    os.path.join(get_base_dir(), 'Logo.png'),
+                    os.path.join(RESOURCE_DIR, 'Logo.png'),
+                ]
+                file_path = next((p for p in png_candidates if os.path.exists(p) and os.path.isfile(p)), None)
+                content_type = 'image/png'
+            if not file_path:
+                self.send_error(404, f"Brand asset not found: {path}")
+                return
+
+            with open(file_path, 'rb') as f:
+                content = f.read()
+
+            self.send_response(200)
+            self.send_header('Content-type', content_type)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(content)))
+            self.end_headers()
+            self.wfile.write(content)
+        except Exception as e:
+            self.send_error(500, f"Error serving brand asset: {str(e)}")
     
     def do_OPTIONS(self):
         """Handle OPTIONS requests for CORS."""
@@ -176,6 +244,9 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             
             elif path.startswith('/api/sync-logs/'):
                 self.send_sync_logs(path, parsed)
+
+            elif path == '/api/build-info' or path == '/api/build-info/':
+                self.send_json_response(load_build_info())
             
             # OLD: Generate and serve report (for backward compatibility)
             elif path.startswith('/api/reports/'):
@@ -928,6 +999,17 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             total_sales_amount = float(sales_current['total_sales_amount'] or 0) if sales_current else 0
             total_sales_count = int(sales_current['total_sales_count'] or 0) if sales_current else 0
             avg_sales_per_transaction = total_sales_amount / total_sales_count if total_sales_count > 0 else 0
+
+            # Get Sales Returns (Credit Notes) Summary for same period
+            cursor.execute(
+                ReportQueries.DASHBOARD_SALES_RETURNS_SUMMARY,
+                (guid, alterid, current_fy_start_str, current_fy_end_str),
+            )
+            returns_row = cursor.fetchone()
+            returns_amount = float(returns_row['returns_amount'] or 0) if returns_row else 0
+            returns_count = int(returns_row['returns_count'] or 0) if returns_row else 0
+            net_sales_amount = max(0.0, total_sales_amount - returns_amount)
+            returns_percent = (returns_amount / total_sales_amount) * 100 if total_sales_amount > 0 else 0.0
             
             # Get Sales Summary for Previous Financial Year (for growth calculation)
             cursor.execute(ReportQueries.DASHBOARD_SALES_SUMMARY_PREVIOUS, 
@@ -949,6 +1031,49 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                                    'sales_amount': float(r['sales_amount'] or 0), 
                                    'sales_count': int(r['sales_count'] or 0)} 
                                   for r in cursor.fetchall()]
+
+            # Get Monthly Sales Returns Trend (Credit Notes) for same period
+            cursor.execute(
+                ReportQueries.MONTHLY_SALES_RETURNS_TREND,
+                (guid, alterid, current_fy_start_str, current_fy_end_str),
+            )
+            monthly_sales_returns_trend = [
+                {
+                    'month_key': r['month_key'],
+                    'month_name': r['month_name'],
+                    'returns_amount': float(r['returns_amount'] or 0),
+                    'returns_count': int(r['returns_count'] or 0),
+                }
+                for r in cursor.fetchall()
+            ]
+
+            # New charts: Daily Sales Trend and Sales by Weekday
+            cursor.execute(
+                ReportQueries.DAILY_SALES_TREND,
+                (guid, alterid, current_fy_start_str, current_fy_end_str),
+            )
+            daily_sales_trend = [
+                {
+                    'day': r['day'],
+                    'sales_amount': float(r['sales_amount'] or 0),
+                    'sales_count': int(r['sales_count'] or 0),
+                }
+                for r in cursor.fetchall()
+            ]
+
+            cursor.execute(
+                ReportQueries.SALES_BY_WEEKDAY,
+                (guid, alterid, current_fy_start_str, current_fy_end_str),
+            )
+            sales_by_weekday = [
+                {
+                    'weekday_key': int(r['weekday_key']) if r['weekday_key'] is not None else None,
+                    'weekday_name': r['weekday_name'],
+                    'sales_amount': float(r['sales_amount'] or 0),
+                    'sales_count': int(r['sales_count'] or 0),
+                }
+                for r in cursor.fetchall()
+            ]
             
             # Get Top Sales Customers for Current Financial Year
             cursor.execute(ReportQueries.TOP_SALES_CUSTOMERS, 
@@ -976,6 +1101,10 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                     'avg_sales_per_transaction': avg_sales_per_transaction,
                     'sales_growth_percent': sales_growth_percent,
                     'previous_sales_amount': prev_sales_amount,
+                    'returns_amount': returns_amount,
+                    'returns_count': returns_count,
+                    'net_sales_amount': net_sales_amount,
+                    'returns_percent': returns_percent,
                     'financial_year': financial_year_label,
                     'period_start': current_fy_start_str,
                     'period_end': current_fy_end_str
@@ -985,6 +1114,9 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                 'voucher_types': voucher_types,
                 'monthly_trend': monthly_trend,
                 'monthly_sales_trend': monthly_sales_trend,
+                'monthly_sales_returns_trend': monthly_sales_returns_trend,
+                'daily_sales_trend': daily_sales_trend,
+                'sales_by_weekday': sales_by_weekday,
                 'top_sales_customers': top_sales_customers
             }
             
