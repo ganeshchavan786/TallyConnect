@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance - TallyConnect</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <script>
+        // IMMEDIATE redirect check - before any content loads
+        (function() {
+            try {
+                const savedCompany = sessionStorage.getItem('selectedCompany');
+                if (!savedCompany) {
+                    window.location.replace('companies.html');
+                }
+            } catch (e) {
+                window.location.replace('companies.html');
+            }
+        })();
+    </script>
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/layout.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/utilities.css">
+    <link rel="stylesheet" href="assets/css/ledger-report.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <div class="brand">
+                <img class="brand-logo" src="/logo.png" alt="Logo" onerror="this.style.display='none'">
+                <div>
+                    <div class="brand-title">TallyConnect</div>
+                    <div class="brand-subtitle">Report Portal</div>
+                </div>
+            </div>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a class="nav-link" href="companies.html">🏢 Companies</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="dashboard.html">📈 Dashboard</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="outstanding-report.html">📊 Outstanding</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="ledgers.html">📗 Ledger</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="sales-register.html">💰 Sales Register</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="finance.html">💼 Finance</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="sync-logs.html">📋 Sync Logs</a>
+            </li>
+        </ul>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="page active" id="financePage" style="display: none;">
+            <a href="reports.html" class="back-button">← Back to Reports</a>
+            
+            <!-- Finance Tabs -->
+            <div class="tc-tabs" id="financeTabs">
+                <button class="tc-tab tc-tab--active" data-tab="overview">Overview</button>
+                <button class="tc-tab" data-tab="payable">Payable</button>
+                <button class="tc-tab" data-tab="purchase">Purchase</button>
+                <button class="tc-tab" data-tab="status">Status</button>
+                <button class="tc-tab" data-tab="vendor">Vendor</button>
+            </div>
+
+            <!-- Finance Tab Panels -->
+            <div class="tc-tab-panels">
+                <!-- Overview Tab -->
+                <div class="tc-tab-panel tc-tab-panel--active" id="tab-overview">
+                    <div class="tc-section">
+                        <div class="tc-header-row">
+                            <div>
+                                <h3 class="tc-section__title">💼 Finance Overview</h3>
+                                <div class="tc-section__hint" id="financeCompanyName" style="font-size: 11px; line-height: 1.4;">Comprehensive financial metrics and analysis</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Finance KPIs -->
+                        <div class="tc-kpi-grid">
+                            <div class="tc-kpi tc-kpi--mint">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Revenue</div>
+                                    <div class="tc-kpi__icon">💰</div>
+                                </div>
+                                <div class="tc-kpi__value" id="financeRevenue">-</div>
+                                <div class="tc-kpi__sub">Total Revenue</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--sky">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">COGS</div>
+                                    <div class="tc-kpi__icon">📦</div>
+                                </div>
+                                <div class="tc-kpi__value" id="financeCogs">-</div>
+                                <div class="tc-kpi__sub">Cost of Goods Sold</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--violet">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Gross Profit</div>
+                                    <div class="tc-kpi__icon">🏠</div>
+                                </div>
+                                <div class="tc-kpi__value" id="financeGrossProfit">-</div>
+                                <div class="tc-kpi__sub">Revenue - COGS</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--rose">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Expenses</div>
+                                    <div class="tc-kpi__icon">💸</div>
+                                </div>
+                                <div class="tc-kpi__value" id="financeExpenses">-</div>
+                                <div class="tc-kpi__sub">Total Expenses</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--amber">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Net Profit</div>
+                                    <div class="tc-kpi__icon">💵</div>
+                                </div>
+                                <div class="tc-kpi__value" id="financeNetProfit">-</div>
+                                <div class="tc-kpi__sub">Gross Profit - Expenses</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--teal">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Profit Margin</div>
+                                    <div class="tc-kpi__icon">📊</div>
+                                </div>
+                                <div class="tc-kpi__value" id="financeProfitMargin">-</div>
+                                <div class="tc-kpi__sub">% of Revenue</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payable Tab -->
+                <div class="tc-tab-panel" id="tab-payable">
+                    <div class="tc-section">
+                        <h3 class="tc-section__title">📋 Payable Overview</h3>
+                        <div class="tc-section__hint">Accounts payable metrics and vendor management</div>
+                        
+                        <div class="tc-kpi-grid">
+                            <div class="tc-kpi tc-kpi--mint">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Total Vendors</div>
+                                    <div class="tc-kpi__icon">📋</div>
+                                </div>
+                                <div class="tc-kpi__value" id="payableTotalVendors">-</div>
+                                <div class="tc-kpi__sub">Vendors</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--sky">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Open Vendors</div>
+                                    <div class="tc-kpi__icon">📂</div>
+                                </div>
+                                <div class="tc-kpi__value" id="payableOpenVendors">-</div>
+                                <div class="tc-kpi__sub">Active</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--violet">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Total Invoices</div>
+                                    <div class="tc-kpi__icon">📄</div>
+                                </div>
+                                <div class="tc-kpi__value" id="payableTotalInvoices">-</div>
+                                <div class="tc-kpi__sub">Invoices</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--rose">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Open Invoices</div>
+                                    <div class="tc-kpi__icon">📊</div>
+                                </div>
+                                <div class="tc-kpi__value" id="payableOpenInvoices">-</div>
+                                <div class="tc-kpi__sub">Pending</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--amber">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Total Amount</div>
+                                    <div class="tc-kpi__icon">💰</div>
+                                </div>
+                                <div class="tc-kpi__value" id="payableTotalAmount">-</div>
+                                <div class="tc-kpi__sub">Payable</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--teal">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Open Amount</div>
+                                    <div class="tc-kpi__icon">💳</div>
+                                </div>
+                                <div class="tc-kpi__value" id="payableOpenAmount">-</div>
+                                <div class="tc-kpi__sub">Outstanding</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Purchase Tab -->
+                <div class="tc-tab-panel" id="tab-purchase">
+                    <div class="tc-section">
+                        <h3 class="tc-section__title">🛒 Purchase Invoices</h3>
+                        <div class="tc-section__hint">Purchase transactions and vendor analysis</div>
+                        
+                        <div class="tc-kpi-grid">
+                            <div class="tc-kpi tc-kpi--mint">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Vendors</div>
+                                    <div class="tc-kpi__icon">🏢</div>
+                                </div>
+                                <div class="tc-kpi__value" id="purchaseVendors">-</div>
+                                <div class="tc-kpi__sub">Total Vendors</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--sky">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Documents</div>
+                                    <div class="tc-kpi__icon">📄</div>
+                                </div>
+                                <div class="tc-kpi__value" id="purchaseDocuments">-</div>
+                                <div class="tc-kpi__sub">Purchase Orders</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--violet">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Quantity</div>
+                                    <div class="tc-kpi__icon">📦</div>
+                                </div>
+                                <div class="tc-kpi__value" id="purchaseQuantity">-</div>
+                                <div class="tc-kpi__sub">Total Qty</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--rose">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Amount</div>
+                                    <div class="tc-kpi__icon">💰</div>
+                                </div>
+                                <div class="tc-kpi__value" id="purchaseAmount">-</div>
+                                <div class="tc-kpi__sub">Total Amount</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--amber">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Discount</div>
+                                    <div class="tc-kpi__icon">🏷️</div>
+                                </div>
+                                <div class="tc-kpi__value" id="purchaseDiscount">-</div>
+                                <div class="tc-kpi__sub">Total Discount</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--teal">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">After Discount</div>
+                                    <div class="tc-kpi__icon">✓</div>
+                                </div>
+                                <div class="tc-kpi__value" id="purchaseAfterDiscount">-</div>
+                                <div class="tc-kpi__sub">Net Amount</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status Tab -->
+                <div class="tc-tab-panel" id="tab-status">
+                    <div class="tc-section">
+                        <h3 class="tc-section__title">⏰ Payable Status</h3>
+                        <div class="tc-section__hint">Payment status and overdue analysis</div>
+                        
+                        <div class="tc-kpi-grid">
+                            <div class="tc-kpi tc-kpi--mint">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">No of Invoices</div>
+                                    <div class="tc-kpi__icon">📋</div>
+                                </div>
+                                <div class="tc-kpi__value" id="statusInvoices">-</div>
+                                <div class="tc-kpi__sub">Total Invoices</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--sky">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Balance Amount</div>
+                                    <div class="tc-kpi__icon">💰</div>
+                                </div>
+                                <div class="tc-kpi__value" id="statusBalance">-</div>
+                                <div class="tc-kpi__sub">Outstanding</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--violet">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Overdue Days</div>
+                                    <div class="tc-kpi__icon">⏰</div>
+                                </div>
+                                <div class="tc-kpi__value" id="statusOverdueDays">-</div>
+                                <div class="tc-kpi__sub">Avg Days</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--rose">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Top Countries</div>
+                                    <div class="tc-kpi__icon">🌐</div>
+                                </div>
+                                <div class="tc-kpi__value" id="statusCountries">-</div>
+                                <div class="tc-kpi__sub">Countries</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vendor Tab -->
+                <div class="tc-tab-panel" id="tab-vendor">
+                    <div class="tc-section">
+                        <h3 class="tc-section__title">🏪 Vendor Statement</h3>
+                        <div class="tc-section__hint">Vendor performance and credit analysis</div>
+                        
+                        <div class="tc-kpi-grid">
+                            <div class="tc-kpi tc-kpi--mint">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Credit Limit</div>
+                                    <div class="tc-kpi__icon">💳</div>
+                                </div>
+                                <div class="tc-kpi__value" id="vendorCreditLimit">-</div>
+                                <div class="tc-kpi__sub">Total Limit</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--sky">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Total Purchases</div>
+                                    <div class="tc-kpi__icon">🛍️</div>
+                                </div>
+                                <div class="tc-kpi__value" id="vendorPurchases">-</div>
+                                <div class="tc-kpi__sub">Transactions</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--violet">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Total Payments</div>
+                                    <div class="tc-kpi__icon">💰</div>
+                                </div>
+                                <div class="tc-kpi__value" id="vendorPayments">-</div>
+                                <div class="tc-kpi__sub">Payments</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--rose">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Total Balance</div>
+                                    <div class="tc-kpi__icon">📊</div>
+                                </div>
+                                <div class="tc-kpi__value" id="vendorBalance">-</div>
+                                <div class="tc-kpi__sub">Outstanding</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--amber">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Open Invoices</div>
+                                    <div class="tc-kpi__icon">📋</div>
+                                </div>
+                                <div class="tc-kpi__value" id="vendorOpenInvoices">-</div>
+                                <div class="tc-kpi__sub">Pending</div>
+                            </div>
+                            <div class="tc-kpi tc-kpi--teal">
+                                <div class="tc-kpi__top">
+                                    <div class="tc-kpi__label">Avg Overdue Days</div>
+                                    <div class="tc-kpi__icon">⏰</div>
+                                </div>
+                                <div class="tc-kpi__value" id="vendorOverdueDays">-</div>
+                                <div class="tc-kpi__sub">Days</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript Files -->
+    <script src="assets/js/utils/helpers.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script>
+        // Global state
+        let selectedCompany = null;
+
+        // Additional check - redirect if no company
+        (function() {
+            try {
+                const savedCompany = sessionStorage.getItem('selectedCompany');
+                if (!savedCompany) {
+                    window.location.replace('companies.html');
+                }
+            } catch (e) {
+                window.location.replace('companies.html');
+            }
+        })();
+    </script>
+    <script src="assets/js/app.js"></script>
+    <script>
+        // Load company from sessionStorage and initialize page
+        window.addEventListener('load', function() {
+            const savedCompany = sessionStorage.getItem('selectedCompany');
+            if (savedCompany) {
+                try {
+                    selectedCompany = JSON.parse(savedCompany);
+                    
+                    // Show the page content
+                    const financePage = document.getElementById('financePage');
+                    if (financePage) {
+                        financePage.style.display = 'block';
+                    }
+                    
+                    // Display company name in page (compact)
+                    const companyName = selectedCompany.name || 'Unknown Company';
+                    const companyHint = document.getElementById('financeCompanyName');
+                    if (companyHint) {
+                        // Truncate long company names
+                        const displayName = companyName.length > 40 ? companyName.substring(0, 37) + '...' : companyName;
+                        companyHint.innerHTML = `<span style="font-weight: 600; color: var(--text);">${displayName}</span> • Comprehensive financial metrics and analysis`;
+                    }
+                } catch (e) {
+                    console.error('Error parsing company data:', e);
+                    window.location.href = 'companies.html';
+                    return;
+                }
+            } else {
+                // No company selected - redirect to companies page
+                window.location.href = 'companies.html';
+                return;
+            }
+
+            // Finance tabs functionality
+            const tabs = document.getElementById('financeTabs');
+            const panels = {
+                overview: document.getElementById('tab-overview'),
+                payable: document.getElementById('tab-payable'),
+                purchase: document.getElementById('tab-purchase'),
+                status: document.getElementById('tab-status'),
+                vendor: document.getElementById('tab-vendor'),
+            };
+
+            function setActiveTab(tabKey) {
+                if (tabs) {
+                    tabs.querySelectorAll('.tc-tab').forEach(b => b.classList.remove('tc-tab--active'));
+                    const btn = tabs.querySelector(`.tc-tab[data-tab="${tabKey}"]`);
+                    if (btn) btn.classList.add('tc-tab--active');
+                }
+                Object.values(panels).forEach(p => p && p.classList.remove('tc-tab-panel--active'));
+                if (panels[tabKey]) panels[tabKey].classList.add('tc-tab-panel--active');
+            }
+
+            if (tabs) {
+                tabs.addEventListener('click', (e) => {
+                    const btn = e.target && e.target.closest ? e.target.closest('button.tc-tab') : null;
+                    if (!btn) return;
+                    const tabKey = btn.getAttribute('data-tab');
+                    if (!tabKey) return;
+                    setActiveTab(tabKey);
+                });
+            }
+
+            // Initialize with Overview tab
+            setActiveTab('overview');
+        });
+    </script>
+</body>
+</html>
+

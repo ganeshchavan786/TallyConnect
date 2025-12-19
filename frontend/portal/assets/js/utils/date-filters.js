@@ -399,21 +399,31 @@ class DateFilterManager {
         }
         
         if (this.layout === 'panel') {
+            // Check if filters are collapsed from localStorage
+            const isCollapsed = localStorage.getItem('dashboardFiltersCollapsed') === 'true';
             container.innerHTML = `
                 <div class="tc-panel tc-filter-panel">
-                    <div class="tc-filter-panel__title">FILTERS</div>
-                    <div class="tc-filter-panel__group">
-                        <div class="tc-filter-panel__label">Period</div>
-                        ${this.renderDateRangeFilter().replaceAll('tc-dd-button', 'tc-dd-button tc-dd-button--compact')}
+                    <div class="tc-filter-panel__title">
+                        <span>FILTERS</span>
+                        <button type="button" class="tc-filter-panel__toggle ${isCollapsed ? 'tc-filter-panel__toggle--collapsed' : ''}" 
+                                id="filterPanelToggle" title="${isCollapsed ? 'Show Filters' : 'Hide Filters'}" aria-label="Toggle Filters">
+                            <span>▼</span>
+                        </button>
                     </div>
-                    <div class="tc-filter-panel__group">
-                        <div class="tc-filter-panel__label">Financial Year</div>
-                        ${this.renderYearFilter().replaceAll('tc-dd-button', 'tc-dd-button tc-dd-button--compact')}
-                    </div>
-                    <div id="periodSummary" class="tc-filter-panel__summary">
-                        <strong>Period:</strong>
-                        ${periodLabel ? `${periodLabel} • ` : ''}
-                        ${periodStart && periodEnd ? `${periodStart} → ${periodEnd}` : ''}
+                    <div class="tc-filter-panel__content" id="filterPanelContent" style="${isCollapsed ? 'display: none;' : ''}">
+                        <div class="tc-filter-panel__group">
+                            <div class="tc-filter-panel__label">Period</div>
+                            ${this.renderDateRangeFilter().replaceAll('tc-dd-button', 'tc-dd-button tc-dd-button--compact')}
+                        </div>
+                        <div class="tc-filter-panel__group">
+                            <div class="tc-filter-panel__label">Financial Year</div>
+                            ${this.renderYearFilter().replaceAll('tc-dd-button', 'tc-dd-button tc-dd-button--compact')}
+                        </div>
+                        <div id="periodSummary" class="tc-filter-panel__summary">
+                            <strong>Period:</strong>
+                            ${periodLabel ? `${periodLabel} • ` : ''}
+                            ${periodStart && periodEnd ? `${periodStart} → ${periodEnd}` : ''}
+                        </div>
                     </div>
                 </div>
             `;
@@ -439,6 +449,55 @@ class DateFilterManager {
      * Attach event listeners
      */
     attachEventListeners() {
+        // Filter panel toggle (for panel layout only)
+        if (this.layout === 'panel') {
+            const filterToggle = document.getElementById('filterPanelToggle');
+            const filterContent = document.getElementById('filterPanelContent');
+            const dashboardLayout = document.querySelector('.tc-dashboard-layout');
+            const filterToggleFloat = document.getElementById('filterToggleFloat');
+            
+            const toggleFilters = (expand) => {
+                if (expand) {
+                    // Expand
+                    if (filterContent) filterContent.style.display = '';
+                    if (filterToggle) {
+                        filterToggle.classList.remove('tc-filter-panel__toggle--collapsed');
+                        filterToggle.setAttribute('title', 'Hide Filters');
+                        filterToggle.setAttribute('aria-label', 'Hide Filters');
+                    }
+                    if (dashboardLayout) dashboardLayout.classList.remove('tc-dashboard-layout--collapsed');
+                    localStorage.setItem('dashboardFiltersCollapsed', 'false');
+                } else {
+                    // Collapse
+                    if (filterContent) filterContent.style.display = 'none';
+                    if (filterToggle) {
+                        filterToggle.classList.add('tc-filter-panel__toggle--collapsed');
+                        filterToggle.setAttribute('title', 'Show Filters');
+                        filterToggle.setAttribute('aria-label', 'Show Filters');
+                    }
+                    if (dashboardLayout) dashboardLayout.classList.add('tc-dashboard-layout--collapsed');
+                    localStorage.setItem('dashboardFiltersCollapsed', 'true');
+                }
+            };
+            
+            // Panel toggle button
+            if (filterToggle && filterContent && dashboardLayout) {
+                filterToggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isCollapsed = filterContent.style.display === 'none';
+                    toggleFilters(isCollapsed);
+                });
+            }
+            
+            // Floating toggle button (when collapsed)
+            if (filterToggleFloat && dashboardLayout) {
+                filterToggleFloat.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleFilters(true);
+                });
+            }
+        }
+        
         // Date range filter
         const dateRangeButton = document.getElementById('dateRangeButton');
         const dateRangeDropdown = document.getElementById('dateRangeDropdown');

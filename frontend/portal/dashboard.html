@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Dashboard - TallyConnect</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     
@@ -42,6 +45,9 @@
                 <a class="nav-link" href="sales-register.html">💰 Sales Register</a>
             </li>
             <li class="nav-item">
+                <a class="nav-link" href="finance.html">💼 Finance</a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" href="sync-logs.html">📋 Sync Logs</a>
             </li>
         </ul>
@@ -51,14 +57,21 @@
     <div class="main-content">
         <div class="page active">
             <a href="reports.html" class="back-button">← Back to Reports</a>
-            <div class="tc-dashboard-layout">
-                <!-- Filters Panel -->
-                <div class="tc-dashboard-filters">
-                    <div id="filterContainer"></div>
-                </div>
-                <!-- Dashboard Content -->
-                <div class="tc-dashboard-content">
-                    <div id="reportContent" class="report-viewer">
+            <!-- Filter Toggle Button -->
+            <div class="tc-filterbar-header">
+                <button type="button" class="tc-filterbar-toggle" id="filterToggleBtn" aria-label="Toggle Filters">
+                    <span class="tc-filterbar-toggle__icon">🔽</span>
+                    <span class="tc-filterbar-toggle__label">FILTERS</span>
+                </button>
+                <div class="tc-filterbar-summary" id="filterSummary"></div>
+            </div>
+            
+            <!-- Filters Bar (Horizontal) -->
+            <div id="filterContainer" class="tc-filterbar-container"></div>
+            
+            <!-- Dashboard Content -->
+            <div class="tc-dashboard-content">
+                <div id="reportContent" class="report-viewer">
                         <div class="tc-loading">
                             <div class="spinner" style="margin: 20px auto;"></div>
                             <div class="tc-loading__text">Loading dashboard...</div>
@@ -105,21 +118,75 @@
                     defaultFYStartYear = null;
                 }
                 
-                // Initialize date filter manager
+                // Initialize date filter manager (horizontal bar layout)
                 dashboardDateFilter = new DateFilterManager({
                     containerId: 'filterContainer',
                     defaultDateRange: 'current_financial_year',
                     defaultYear: defaultFYStartYear,
-                    layout: 'panel',
+                    layout: 'bar',
                     onFilterChange: function(filterParams) {
                         // Reload dashboard with new filter parameters
                         reloadDashboardWithFilters(filterParams);
+                        // Update filter summary
+                        updateFilterSummary(filterParams);
                     }
                 });
                 dashboardDateFilter.render();
                 
+                // Initialize filter toggle button
+                const filterToggleBtn = document.getElementById('filterToggleBtn');
+                const filterContainer = document.getElementById('filterContainer');
+                
+                if (filterToggleBtn && filterContainer) {
+                    // Default to expanded (filters visible)
+                    const isCollapsed = localStorage.getItem('dashboardFilterCollapsed') === 'true';
+                    
+                    // Ensure filter container is visible initially
+                    filterContainer.style.display = '';
+                    filterContainer.style.visibility = 'visible';
+                    filterContainer.style.opacity = '1';
+                    
+                    if (isCollapsed) {
+                        filterContainer.classList.add('tc-filterbar-container--collapsed');
+                        filterToggleBtn.classList.add('tc-filterbar-toggle--collapsed');
+                    } else {
+                        // Make sure it's expanded
+                        filterContainer.classList.remove('tc-filterbar-container--collapsed');
+                        filterToggleBtn.classList.remove('tc-filterbar-toggle--collapsed');
+                    }
+                    
+                    filterToggleBtn.addEventListener('click', function() {
+                        const isCurrentlyCollapsed = filterContainer.classList.contains('tc-filterbar-container--collapsed');
+                        if (isCurrentlyCollapsed) {
+                            filterContainer.classList.remove('tc-filterbar-container--collapsed');
+                            filterToggleBtn.classList.remove('tc-filterbar-toggle--collapsed');
+                            localStorage.setItem('dashboardFilterCollapsed', 'false');
+                        } else {
+                            filterContainer.classList.add('tc-filterbar-container--collapsed');
+                            filterToggleBtn.classList.add('tc-filterbar-toggle--collapsed');
+                            localStorage.setItem('dashboardFilterCollapsed', 'true');
+                        }
+                    });
+                }
+                
+                // Update filter summary function
+                function updateFilterSummary(params) {
+                    const summaryEl = document.getElementById('filterSummary');
+                    if (summaryEl && params) {
+                        const period = params.dateRange || 'Current FY';
+                        const from = params.startDate ? new Date(params.startDate).toISOString().split('T')[0] : '';
+                        const to = params.endDate ? new Date(params.endDate).toISOString().split('T')[0] : '';
+                        if (from && to) {
+                            summaryEl.textContent = `Period: ${period} • ${from} → ${to}`;
+                        } else {
+                            summaryEl.textContent = `Period: ${period}`;
+                        }
+                    }
+                }
+                
                 // Load dashboard with initial filters
                 const filterParams = dashboardDateFilter.getFilterParams();
+                updateFilterSummary(filterParams);
                 loadDashboardReportWithFilters(filterParams);
             } else {
                 window.location.href = 'companies.html';

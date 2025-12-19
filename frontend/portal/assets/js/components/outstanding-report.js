@@ -14,42 +14,77 @@ function renderOutstandingReport(data) {
     }
     
     let html = `
-        <div style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h2 style="color: #2c3e50; margin-bottom: 10px;">${data.company_name}</h2>
-            <h3 style="color: #34495e; margin-bottom: 20px;">Outstanding Report</h3>
-            <div style="margin-bottom: 20px; padding: 15px; background: #ecf0f1; border-radius: 4px;">
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; text-align: center;">
-                    <div>
-                        <div style="font-size: 12px; color: #7f8c8d;">Total Parties</div>
-                        <div style="font-size: 18px; font-weight: 600; color: #2c3e50;">${data.total_parties || 0}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 12px; color: #7f8c8d;">Total Debit</div>
-                        <div style="font-size: 18px; font-weight: 600; color: #27ae60;">${formatCurrency(data.total_debit || 0)}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 12px; color: #7f8c8d;">Total Credit</div>
-                        <div style="font-size: 18px; font-weight: 600; color: #e74c3c;">${formatCurrency(data.total_credit || 0)}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 12px; color: #7f8c8d;">Total Outstanding</div>
-                        <div style="font-size: 18px; font-weight: 600; color: #3498db;">${formatCurrency(data.total_outstanding || 0)}</div>
-                    </div>
+        <div class="tc-section">
+            <div class="tc-header-row">
+                <div>
+                    <h2 class="tc-title-xl">${data.company_name}</h2>
+                    <h3 class="tc-title-lg">Outstanding Report</h3>
+                    <div class="tc-subtitle">As on: ${data.as_on_date || 'N/A'}</div>
+                </div>
+                <div class="tc-actions">
+                    <button onclick="exportOutstandingReport('csv')" class="tc-btn tc-btn--success">
+                        📄 CSV
+                    </button>
+                    <button onclick="exportOutstandingReport('excel')" class="tc-btn tc-btn--primary">
+                        📊 Excel
+                    </button>
+                    <button onclick="exportOutstandingReport('pdf')" class="tc-btn tc-btn--danger">
+                        📑 PDF
+                    </button>
                 </div>
             </div>
-            <div style="margin-bottom: 10px; color: #7f8c8d; font-size: 14px;">
-                As on: ${data.as_on_date || 'N/A'}
+            
+            <!-- KPI Cards -->
+            <div class="tc-kpi-grid">
+                <div class="tc-kpi tc-kpi--mint">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Total Parties</div>
+                        <div class="tc-kpi__icon">👥</div>
+                    </div>
+                    <div class="tc-kpi__value">${data.total_parties || 0}</div>
+                    <div class="tc-kpi__sub">Parties</div>
+                </div>
+                <div class="tc-kpi tc-kpi--sky">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Total Debit</div>
+                        <div class="tc-kpi__icon">📈</div>
+                    </div>
+                    <div class="tc-kpi__value">${formatCurrency(data.total_debit || 0)}</div>
+                    <div class="tc-kpi__sub">Debit Amount</div>
+                </div>
+                <div class="tc-kpi tc-kpi--rose">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Total Credit</div>
+                        <div class="tc-kpi__icon">📉</div>
+                    </div>
+                    <div class="tc-kpi__value">${formatCurrency(data.total_credit || 0)}</div>
+                    <div class="tc-kpi__sub">Credit Amount</div>
+                </div>
+                <div class="tc-kpi tc-kpi--violet">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Total Outstanding</div>
+                        <div class="tc-kpi__icon">💰</div>
+                    </div>
+                    <div class="tc-kpi__value">${formatCurrency(data.total_outstanding || 0)}</div>
+                    <div class="tc-kpi__sub">Net Balance</div>
+                </div>
             </div>
-            <div style="overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+        </div>
+        
+        <!-- Parties Table -->
+        <div class="tc-section">
+            <h3 class="tc-section__title">📋 Party Details</h3>
+            <div class="tc-section__hint">Outstanding balances for all parties</div>
+            <div class="tc-table-wrap">
+                <table class="tc-table">
                     <thead>
-                        <tr style="background: #34495e; color: white;">
-                            <th style="padding: 12px; text-align: left; border: 1px solid #2c3e50;">Party Name</th>
-                            <th style="padding: 12px; text-align: right; border: 1px solid #2c3e50;">Debit</th>
-                            <th style="padding: 12px; text-align: right; border: 1px solid #2c3e50;">Credit</th>
-                            <th style="padding: 12px; text-align: right; border: 1px solid #2c3e50;">Balance</th>
-                            <th style="padding: 12px; text-align: center; border: 1px solid #2c3e50;">Transactions</th>
-                            <th style="padding: 12px; text-align: center; border: 1px solid #2c3e50;">Last Transaction</th>
+                        <tr>
+                            <th>Party Name</th>
+                            <th class="tc-right">Debit</th>
+                            <th class="tc-right">Credit</th>
+                            <th class="tc-right">Balance</th>
+                            <th class="tc-center">Transactions</th>
+                            <th class="tc-center">Last Transaction</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -58,23 +93,23 @@ function renderOutstandingReport(data) {
     // Check if parties array exists
     if (data.parties && Array.isArray(data.parties)) {
         data.parties.forEach(party => {
-            const balanceClass = party.balance > 0 ? 'color: #27ae60;' : party.balance < 0 ? 'color: #e74c3c;' : '';
+            const balanceClass = party.balance > 0 ? 'tc-text-success' : party.balance < 0 ? 'tc-text-danger' : '';
             html += `
-                <tr style="border-bottom: 1px solid #ecf0f1;">
-                    <td style="padding: 10px; font-weight: 600;">${party.party_name || '-'}</td>
-                    <td style="padding: 10px; text-align: right; color: #27ae60;">${formatCurrency(party.debit || 0)}</td>
-                    <td style="padding: 10px; text-align: right; color: #e74c3c;">${formatCurrency(party.credit || 0)}</td>
-                    <td style="padding: 10px; text-align: right; font-weight: 600; ${balanceClass}">${formatCurrency(Math.abs(party.balance || 0))}</td>
-                    <td style="padding: 10px; text-align: center;">${party.transaction_count || 0}</td>
-                    <td style="padding: 10px; text-align: center; font-size: 12px; color: #7f8c8d;">${party.last_transaction || '-'}</td>
-                </tr>
+                        <tr>
+                            <td class="tc-fw-600">${party.party_name || '-'}</td>
+                            <td class="tc-right tc-text-success">${formatCurrency(party.debit || 0)}</td>
+                            <td class="tc-right tc-text-danger">${formatCurrency(party.credit || 0)}</td>
+                            <td class="tc-right tc-fw-600 ${balanceClass}">${formatCurrency(Math.abs(party.balance || 0))}</td>
+                            <td class="tc-center">${party.transaction_count || 0}</td>
+                            <td class="tc-center tc-muted">${party.last_transaction || '-'}</td>
+                        </tr>
             `;
         });
     } else {
         html += `
-            <tr>
-                <td colspan="6" style="text-align: center; padding: 20px; color: #7f8c8d;">No parties found</td>
-            </tr>
+                        <tr>
+                            <td colspan="6" class="tc-center tc-muted" style="padding: 40px;">No parties found</td>
+                        </tr>
         `;
     }
     
@@ -86,5 +121,44 @@ function renderOutstandingReport(data) {
     `;
     
     contentDiv.innerHTML = html;
+    
+    // Store data for export
+    if (typeof window !== 'undefined') {
+        window.currentOutstandingData = data;
+    }
+}
+
+/**
+ * Export outstanding report
+ * @param {string} format - Export format ('csv', 'excel', 'pdf')
+ */
+function exportOutstandingReport(format) {
+    if (!window.currentOutstandingData) {
+        alert('No data available to export');
+        return;
+    }
+    
+    const data = window.currentOutstandingData;
+    const parties = data.parties || [];
+    
+    if (format === 'csv') {
+        let csv = 'Party Name,Debit,Credit,Balance,Transactions,Last Transaction\n';
+        parties.forEach(party => {
+            csv += `"${party.party_name || ''}",${party.debit || 0},${party.credit || 0},${party.balance || 0},${party.transaction_count || 0},"${party.last_transaction || ''}"\n`;
+        });
+        
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `outstanding-report-${data.company_name || 'report'}-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    } else if (format === 'excel') {
+        // For Excel, use CSV format (browsers will open in Excel)
+        exportOutstandingReport('csv');
+    } else if (format === 'pdf') {
+        alert('PDF export coming soon!');
+    }
 }
 

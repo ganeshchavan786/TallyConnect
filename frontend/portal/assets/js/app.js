@@ -39,29 +39,42 @@ document.addEventListener('DOMContentLoaded', function () {
 
         let toggle = document.getElementById('themeToggle');
         if (!toggle) {
-            toggle = document.createElement('div');
+            toggle = document.createElement('button');
             toggle.id = 'themeToggle';
-            toggle.className = 'tc-theme-toggle';
-            toggle.innerHTML = `
-                <div class="tc-theme-toggle__label">Dark</div>
-                <button type="button" class="tc-switch" aria-label="Toggle dark mode">
-                    <span class="tc-switch__knob"></span>
-                </button>
-            `;
+            toggle.type = 'button';
+            toggle.className = 'tc-theme-toggle-icon';
+            toggle.setAttribute('aria-label', 'Toggle dark mode');
+            toggle.textContent = theme === 'dark' ? '☀️' : '🌙';
             logo.appendChild(toggle);
+        } else {
+            // Update existing toggle - remove switch, keep only icon
+            const existingSwitch = toggle.querySelector('.tc-switch');
+            const existingLabel = toggle.querySelector('.tc-theme-toggle__label');
+            if (existingSwitch || existingLabel) {
+                // Convert to simple icon button
+                const newToggle = document.createElement('button');
+                newToggle.id = 'themeToggle';
+                newToggle.type = 'button';
+                newToggle.className = 'tc-theme-toggle-icon';
+                newToggle.setAttribute('aria-label', 'Toggle dark mode');
+                newToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+                toggle.replaceWith(newToggle);
+                toggle = newToggle;
+            } else {
+                // Already an icon button, just update text
+                toggle.textContent = theme === 'dark' ? '☀️' : '🌙';
+            }
         }
-
-        const btn = toggle.querySelector('.tc-switch');
-        if (!btn) return;
 
         const apply = (t) => {
             document.documentElement.dataset.theme = t;
             localStorage.setItem(key, t);
-            btn.classList.toggle('is-on', t === 'dark');
+            // Update icon (moon for light mode, sun for dark mode)
+            toggle.textContent = t === 'dark' ? '☀️' : '🌙';
         };
 
         apply(theme);
-        btn.addEventListener('click', () => {
+        toggle.addEventListener('click', () => {
             const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
             apply(next);
         });

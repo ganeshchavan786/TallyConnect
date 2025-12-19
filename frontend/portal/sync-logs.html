@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="assets/css/layout.css">
     <link rel="stylesheet" href="assets/css/components.css">
     <link rel="stylesheet" href="assets/css/utilities.css">
+    <link rel="stylesheet" href="assets/css/ledger-report.css">
 </head>
 <body>
     <!-- Sidebar -->
@@ -41,6 +42,9 @@
                 <a class="nav-link" href="sales-register.html">💰 Sales Register</a>
             </li>
             <li class="nav-item">
+                <a class="nav-link" href="finance.html">💼 Finance</a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link active" href="sync-logs.html">📋 Sync Logs</a>
             </li>
         </ul>
@@ -52,22 +56,22 @@
             <h1 class="page-title">Sync Logs</h1>
             
             <!-- Filters -->
-            <div class="ledger-controls" style="margin-bottom: 20px;">
+            <div class="ledger-controls">
                 <div class="controls-row">
                     <div class="search-container" style="flex: 1;">
-                        <select id="companyFilter" class="filter-select" style="width: 100%; padding: 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 14px;">
+                        <select id="companyFilter" class="filter-select" style="width: 100%;">
                             <option value="">All Companies</option>
                         </select>
                     </div>
                     <div class="filter-group">
-                        <select id="logLevelFilter" class="filter-select" style="padding: 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 14px;">
+                        <select id="logLevelFilter" class="filter-select">
                             <option value="">All Levels</option>
                             <option value="INFO">Info</option>
                             <option value="WARNING">Warning</option>
                             <option value="ERROR">Error</option>
                             <option value="SUCCESS">Success</option>
                         </select>
-                        <select id="syncStatusFilter" class="filter-select" style="padding: 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 14px;">
+                        <select id="syncStatusFilter" class="filter-select">
                             <option value="">All Status</option>
                             <option value="started">Started</option>
                             <option value="in_progress">In Progress</option>
@@ -84,25 +88,29 @@
             </div>
             
             <!-- Logs Table -->
-            <div style="background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background: #34495e; color: white;">
-                            <th style="padding: 12px; text-align: left; border: 1px solid #2c3e50;">Timestamp</th>
-                            <th style="padding: 12px; text-align: left; border: 1px solid #2c3e50;">Company</th>
-                            <th style="padding: 12px; text-align: center; border: 1px solid #2c3e50;">Level</th>
-                            <th style="padding: 12px; text-align: center; border: 1px solid #2c3e50;">Status</th>
-                            <th style="padding: 12px; text-align: left; border: 1px solid #2c3e50;">Message</th>
-                            <th style="padding: 12px; text-align: right; border: 1px solid #2c3e50;">Records</th>
-                            <th style="padding: 12px; text-align: right; border: 1px solid #2c3e50;">Duration</th>
-                        </tr>
-                    </thead>
-                    <tbody id="logsTableBody">
-                        <tr>
-                            <td colspan="7" style="text-align: center; padding: 20px; color: #7f8c8d;">Loading logs...</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div class="tc-section">
+                <h3 class="tc-section__title">📋 Sync Logs</h3>
+                <div class="tc-section__hint">Synchronization activity and status logs</div>
+                <div class="tc-table-wrap">
+                    <table class="tc-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Company</th>
+                                <th class="tc-center">Level</th>
+                                <th class="tc-center">Status</th>
+                                <th>Message</th>
+                                <th class="tc-right">Records</th>
+                                <th class="tc-right">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTableBody">
+                            <tr>
+                                <td colspan="7" class="tc-center tc-muted" style="padding: 40px;">Loading logs...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
             
             <!-- Pagination -->
@@ -209,13 +217,13 @@
             if (logs.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7" style="text-align: center; padding: 40px; color: #7f8c8d;">
-                            <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
-                            <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #34495e;">No Sync Logs Found</div>
-                            <div style="font-size: 14px; color: #95a5a6; margin-bottom: 16px;">
+                        <td colspan="7" class="tc-center" style="padding: 60px;">
+                            <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;">📋</div>
+                            <div class="tc-title-lg" style="margin-bottom: 8px;">No Sync Logs Found</div>
+                            <div class="tc-subtitle" style="margin-bottom: 16px;">
                                 Sync logs will appear here after you perform sync operations.
                             </div>
-                            <div style="font-size: 12px; color: #bdc3c7;">
+                            <div style="font-size: 11px; color: var(--muted-2);">
                                 To generate logs, sync a company in TallyConnect app.
                             </div>
                         </td>
@@ -224,44 +232,44 @@
                 return;
             }
             
-            logs.forEach(log => {
+            logs.forEach((log, index) => {
                 const levelColor = {
-                    'INFO': '#3498db',
-                    'WARNING': '#f39c12',
-                    'ERROR': '#e74c3c',
-                    'SUCCESS': '#27ae60'
-                }[log.log_level] || '#7f8c8d';
+                    'INFO': 'var(--primary)',
+                    'WARNING': 'var(--warning)',
+                    'ERROR': 'var(--danger)',
+                    'SUCCESS': 'var(--success)'
+                }[log.log_level] || 'var(--muted)';
                 
                 const statusColor = {
-                    'started': '#3498db',
-                    'in_progress': '#f39c12',
-                    'completed': '#27ae60',
-                    'failed': '#e74c3c'
-                }[log.sync_status] || '#7f8c8d';
+                    'started': 'var(--primary)',
+                    'in_progress': 'var(--warning)',
+                    'completed': 'var(--success)',
+                    'failed': 'var(--danger)'
+                }[log.sync_status] || 'var(--muted)';
                 
                 const duration = log.duration_seconds ? `${log.duration_seconds.toFixed(2)}s` : '-';
                 const records = log.records_synced > 0 ? log.records_synced.toLocaleString() : '-';
                 
                 const row = document.createElement('tr');
-                row.style.borderBottom = '1px solid #ecf0f1';
+                row.style.animationDelay = `${index * 30}ms`;
                 row.innerHTML = `
-                    <td style="padding: 10px; font-size: 12px; color: #7f8c8d;">${formatDateTime(log.created_at)}</td>
-                    <td style="padding: 10px; font-weight: 600;">${log.company_name || '-'}</td>
-                    <td style="padding: 10px; text-align: center;">
-                        <span style="padding: 4px 8px; border-radius: 4px; background: ${levelColor}; color: white; font-size: 11px; font-weight: 600;">
+                    <td class="tc-muted" style="font-size: 11px;">${formatDateTime(log.created_at)}</td>
+                    <td class="tc-fw-600">${log.company_name || '-'}</td>
+                    <td class="tc-center">
+                        <span class="tc-chip" style="background: ${levelColor}; color: white; border: none; font-size: 10px; padding: 4px 8px;">
                             ${log.log_level || '-'}
                         </span>
                     </td>
-                    <td style="padding: 10px; text-align: center;">
-                        ${log.sync_status ? `<span style="padding: 4px 8px; border-radius: 4px; background: ${statusColor}; color: white; font-size: 11px; font-weight: 600;">${log.sync_status}</span>` : '-'}
+                    <td class="tc-center">
+                        ${log.sync_status ? `<span class="tc-chip" style="background: ${statusColor}; color: white; border: none; font-size: 10px; padding: 4px 8px;">${log.sync_status}</span>` : '<span class="tc-muted">-</span>'}
                     </td>
-                    <td style="padding: 10px;">
-                        <div style="font-weight: 600; margin-bottom: 4px;">${log.log_message || '-'}</div>
-                        ${log.log_details ? `<div style="font-size: 11px; color: #7f8c8d;">${log.log_details}</div>` : ''}
-                        ${log.error_message ? `<div style="font-size: 11px; color: #e74c3c; margin-top: 4px;">Error: ${log.error_message}</div>` : ''}
+                    <td>
+                        <div class="tc-fw-600" style="margin-bottom: 4px; font-size: 12px;">${log.log_message || '-'}</div>
+                        ${log.log_details ? `<div class="tc-muted" style="font-size: 10px;">${log.log_details}</div>` : ''}
+                        ${log.error_message ? `<div style="font-size: 10px; color: var(--danger); margin-top: 4px;">⚠️ ${log.error_message}</div>` : ''}
                     </td>
-                    <td style="padding: 10px; text-align: right; color: #3498db; font-weight: 600;">${records}</td>
-                    <td style="padding: 10px; text-align: right; color: #7f8c8d;">${duration}</td>
+                    <td class="tc-right tc-fw-600" style="color: var(--primary);">${records}</td>
+                    <td class="tc-right tc-muted" style="font-size: 11px;">${duration}</td>
                 `;
                 tbody.appendChild(row);
             });

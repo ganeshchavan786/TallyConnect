@@ -4,12 +4,12 @@
 
 /* Sidebar */
 .sidebar {
-    width: 280px;
+    width: 220px;
     background: radial-gradient(900px 500px at 20% 0%, var(--sidebar-glow-1), transparent 60%),
                 radial-gradient(700px 420px at 80% 10%, var(--sidebar-glow-2), transparent 55%),
                 linear-gradient(180deg, var(--sidebar-base) 0%, rgba(11, 43, 34, 0.92) 100%);
     color: white;
-    padding: 20px;
+    padding: 14px;
     box-shadow: 2px 0 18px rgba(15, 23, 42, 0.18);
     overflow-y: auto;
     border-right: 1px solid rgba(255, 255, 255, 0.08);
@@ -17,17 +17,51 @@
 
 .logo {
     text-align: center;
-    padding: 20px 0;
+    padding: 12px 0;
+    padding-top: 48px; /* Space for toggle button */
     border-bottom: 1px solid rgba(255, 255, 255, 0.14);
-    margin-bottom: 30px;
+    margin-bottom: 16px;
     position: relative;
 }
 
-/* Theme toggle (top-right in sidebar header) */
+/* Theme toggle (top-left in sidebar header) - Icon only button */
+.tc-theme-toggle-icon {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.18);
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0;
+    transition: transform 200ms ease, background 200ms ease, box-shadow 200ms ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10;
+}
+
+.tc-theme-toggle-icon:hover {
+    background: rgba(255,255,255,0.20);
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.20);
+}
+
+.tc-theme-toggle-icon:active {
+    transform: scale(0.95);
+}
+
+/* Legacy support - if old toggle structure exists */
 .tc-theme-toggle {
     position: absolute;
     top: 10px;
-    right: 10px;
+    left: 10px;
     display: inline-flex;
     gap: 8px;
     align-items: center;
@@ -42,6 +76,12 @@
     font-size: 11px;
     opacity: 0.85;
     font-weight: 800;
+}
+
+.tc-theme-toggle__icon {
+    font-size: 14px;
+    line-height: 1;
+    display: inline-block;
 }
 
 .tc-switch {
@@ -90,26 +130,29 @@
     gap: 12px;
     align-items: center;
     justify-content: center;
+    flex-wrap: wrap;
 }
 
 .logo .brand-logo {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     object-fit: contain;
     border-radius: 10px;
-    background: rgba(255, 255, 255, 0.08);
-    padding: 6px;
+    background: rgba(255, 255, 255, 0.10);
+    padding: 4px;
+    flex-shrink: 0;
+    display: block;
 }
 
 .logo .brand-title {
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 800;
     letter-spacing: 0.2px;
     line-height: 1.1;
 }
 
 .logo .brand-subtitle {
-    font-size: 12px;
+    font-size: 10px;
     opacity: 0.85;
     margin-top: 2px;
 }
@@ -117,7 +160,7 @@
 /* Main Content */
 .main-content {
     flex: 1;
-    padding: 28px;
+    padding: 16px;
     overflow-y: auto;
     background: transparent;
 }
@@ -125,18 +168,96 @@
 /* Dashboard V3 layout (left filter panel inside main content) */
 .tc-dashboard-layout {
     display: grid;
-    grid-template-columns: 320px 1fr;
-    gap: 18px;
+    grid-template-columns: 230px 1fr;
+    gap: 16px;
     align-items: start;
+    transition: grid-template-columns 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tc-dashboard-layout.tc-dashboard-layout--collapsed {
+    grid-template-columns: 0 1fr;
+    gap: 0;
 }
 
 .tc-dashboard-filters {
     position: sticky;
-    top: 18px;
+    top: 12px;
+    transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                transform 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                width 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+.tc-dashboard-layout--collapsed .tc-dashboard-filters {
+    opacity: 0;
+    transform: translateX(-100%);
+    width: 0;
+    pointer-events: none;
+}
+
+.tc-dashboard-content {
+    transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    width: 100%;
 }
 
 .tc-dashboard-content .report-viewer {
-    max-height: calc(100vh - 120px);
+    max-height: calc(100vh - 180px);
+}
+
+/* Floating filter toggle button (when collapsed) */
+.tc-filter-toggle-float {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    z-index: 100;
+    appearance: none;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 12px;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    transition: transform 200ms ease, background 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.10), 0 2px 8px rgba(15, 23, 42, 0.06);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-20px);
+}
+
+.tc-dashboard-layout--collapsed .tc-filter-toggle-float {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+}
+
+.tc-filter-toggle-float:hover {
+    background: rgba(255, 255, 255, 0.98);
+    border-color: rgba(15, 23, 42, 0.18);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.tc-filter-toggle-float:active {
+    transform: translateY(0);
+}
+
+html[data-theme="dark"] .tc-filter-toggle-float {
+    background: rgba(15, 23, 42, 0.45);
+    border-color: rgba(230, 241, 255, 0.12);
+    color: rgba(230, 241, 255, 0.9);
+}
+
+html[data-theme="dark"] .tc-filter-toggle-float:hover {
+    background: rgba(15, 23, 42, 0.55);
+    border-color: rgba(230, 241, 255, 0.18);
 }
 
 @media (max-width: 1100px) {
@@ -146,6 +267,9 @@
     .tc-dashboard-filters {
         position: relative;
         top: auto;
+    }
+    .tc-dashboard-layout--collapsed .tc-dashboard-filters {
+        display: none;
     }
 }
 
@@ -164,12 +288,18 @@
     max-height: calc(100vh - 100px);
     overflow-y: auto;
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(8px);
-    padding: 18px;
+    border-radius: 16px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.04);
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(10px);
+    padding: 14px;
     position: relative;
     z-index: 1;
+    transition: box-shadow 200ms ease;
+    overflow-x: visible;
+}
+
+.report-viewer:hover {
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.10), 0 6px 16px rgba(15, 23, 42, 0.06);
 }
 

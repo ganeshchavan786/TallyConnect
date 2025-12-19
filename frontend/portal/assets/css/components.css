@@ -8,20 +8,21 @@
 }
 
 .nav-item {
-    margin-bottom: 10px;
+    margin-bottom: 5px;
 }
 
 .nav-link {
     display: block;
-    padding: 12px 15px;
+    padding: 8px 10px;
     color: white;
     text-decoration: none;
-    border-radius: 12px;
+    border-radius: 8px;
     transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
     cursor: pointer;
     position: relative;
     border: 1px solid rgba(255, 255, 255, 0.06);
     background: rgba(255, 255, 255, 0.02);
+    font-size: 13px;
 }
 
 .nav-link:hover {
@@ -202,13 +203,19 @@
 }
 
 .filter-select {
-    padding: 10px 15px;
+    padding: 8px 12px;
     border: 1px solid var(--border);
-    border-radius: 12px;
-    font-size: 14px;
-    background: white;
+    border-radius: 10px;
+    font-size: 11px;
+    background: rgba(255, 255, 255, 1);
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 200ms ease;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.filter-select:hover {
+    border-color: rgba(var(--primary-rgb), 0.30);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
 }
 
 .filter-select:focus {
@@ -236,27 +243,31 @@
 }
 
 .ledger-item {
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    padding: 15px;
-    margin-bottom: 10px;
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 200ms ease;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+    animation: fadeInUp 400ms ease-out backwards;
 }
 
 .ledger-item:hover {
-    border-color: #3498db;
-    background: #f8f9fa;
-    transform: translateX(5px);
+    border-color: rgba(var(--primary-rgb), 0.30);
+    background: rgba(255, 255, 255, 0.95);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.10);
 }
 
 .ledger-item.selected {
-    border-color: #3498db;
-    background: #e8f4f8;
+    border-color: rgba(var(--primary-rgb), 0.50);
+    background: rgba(var(--primary-rgb), 0.08);
+    box-shadow: 0 8px 24px rgba(var(--primary-rgb), 0.15);
 }
 
 .ledger-info {
@@ -280,14 +291,15 @@
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%);
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 12px;
+    padding: 8px 16px;
+    border-radius: 10px;
     cursor: pointer;
-    margin-bottom: 20px;
-    font-size: 14px;
+    margin-bottom: 14px;
+    font-size: 13px;
     font-weight: 600;
     box-shadow: 0 12px 26px rgba(37, 99, 235, 0.22);
     transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+    display: inline-block;
 }
 
 .back-button:hover {

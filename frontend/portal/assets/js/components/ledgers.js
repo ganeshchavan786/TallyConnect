@@ -42,15 +42,19 @@ function renderLedgerList() {
     const endIndex = Math.min(startIndex + itemsPerPage, filteredLedgers.length);
     const pageLedgers = filteredLedgers.slice(startIndex, endIndex);
     
-    // Render ledger items
+    // Render ledger items with modern cards
     pageLedgers.forEach(ledger => {
         const item = document.createElement('div');
         item.className = 'ledger-item';
         item.innerHTML = `
             <div class="ledger-info">
                 <div class="ledger-name">${ledger.name}</div>
-                <div class="ledger-count">Transactions: ${ledger.count || 0}</div>
+                <div class="ledger-count">
+                    <span style="font-size: 11px; opacity: 0.8;">📊</span>
+                    <span style="margin-left: 6px;">${ledger.count || 0} Transactions</span>
+                </div>
             </div>
+            <div style="font-size: 20px; opacity: 0.6;">→</div>
         `;
         item.setAttribute('data-ledger-name', ledger.name);
         item.onclick = () => selectLedger(ledger);

@@ -229,10 +229,49 @@ function renderDashboardReport(data) {
                 </div>
                 <div class="tc-tab-panel tc-tab-panel--active" id="tab-trends">
             
+            <!-- Trends Summary KPIs -->
+            ${data.sales && data.monthly_sales_trend ? `
+            <div class="tc-kpi-grid">
+                <div class="tc-kpi tc-kpi--mint">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Trend Period</div>
+                        <div class="tc-kpi__icon">📊</div>
+                    </div>
+                    <div class="tc-kpi__value">${data.monthly_sales_trend.length}</div>
+                    <div class="tc-kpi__sub">Months</div>
+                </div>
+                <div class="tc-kpi tc-kpi--sky">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Peak Month</div>
+                        <div class="tc-kpi__icon">📈</div>
+                    </div>
+                    <div class="tc-kpi__value" id="trendsPeakMonth">-</div>
+                    <div class="tc-kpi__sub" id="trendsPeakAmount">-</div>
+                </div>
+                <div class="tc-kpi tc-kpi--violet">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Avg Monthly</div>
+                        <div class="tc-kpi__icon">📉</div>
+                    </div>
+                    <div class="tc-kpi__value" id="trendsAvgMonthly">-</div>
+                    <div class="tc-kpi__sub">Average</div>
+                </div>
+                <div class="tc-kpi tc-kpi--amber">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Growth Rate</div>
+                        <div class="tc-kpi__icon">📊</div>
+                    </div>
+                    <div class="tc-kpi__value" id="trendsGrowthRate">-</div>
+                    <div class="tc-kpi__sub">MoM Change</div>
+                </div>
+            </div>
+            ` : ''}
+
             <!-- Monthly Sales Trend Chart -->
             ${data.sales && data.monthly_sales_trend && data.monthly_sales_trend.length > 0 ? `
             <div class="tc-section">
                 <h3 class="tc-section__title">📈 Monthly Sales Trend</h3>
+                <div class="tc-section__hint">Sales performance over time - identify growth patterns and seasonal trends</div>
                 <div class="tc-chart">
                     <canvas id="monthlySalesChart"></canvas>
                 </div>
@@ -243,7 +282,7 @@ function renderDashboardReport(data) {
             ${data.daily_sales_trend && data.daily_sales_trend.length > 0 ? `
             <div class="tc-section">
                 <h3 class="tc-section__title">📅 Daily Sales Trend</h3>
-                <div class="tc-section__hint">(Shows sales amount per day for selected period)</div>
+                <div class="tc-section__hint">Day-by-day sales breakdown - filter by month or weekday to analyze patterns</div>
                 <div id="salesSlicers" class="tc-mb-12"></div>
                 <div class="tc-chart tc-chart--h360">
                     <canvas id="dailySalesChart"></canvas>
@@ -255,7 +294,7 @@ function renderDashboardReport(data) {
             ${data.sales_by_weekday && data.sales_by_weekday.length > 0 ? `
             <div class="tc-section">
                 <h3 class="tc-section__title">🗓️ Sales by Weekday</h3>
-                <div class="tc-section__hint">(Pattern: which day of week has highest sales)</div>
+                <div class="tc-section__hint">Discover which days of the week drive the most sales - optimize operations accordingly</div>
                 <div class="tc-chart tc-chart--h320">
                     <canvas id="weekdaySalesChart"></canvas>
                 </div>
@@ -265,10 +304,49 @@ function renderDashboardReport(data) {
                 </div>
                 <div class="tc-tab-panel tc-tab-panel--active" id="tab-customers">
             
+            <!-- Customers Summary KPIs -->
+            ${data.top_sales_customers && data.top_sales_customers.length > 0 && data.sales ? `
+            <div class="tc-kpi-grid">
+                <div class="tc-kpi tc-kpi--mint">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Total Customers</div>
+                        <div class="tc-kpi__icon">👥</div>
+                    </div>
+                    <div class="tc-kpi__value">${data.top_sales_customers.length}</div>
+                    <div class="tc-kpi__sub">Active</div>
+                </div>
+                <div class="tc-kpi tc-kpi--sky">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Top Customer</div>
+                        <div class="tc-kpi__icon">🏆</div>
+                    </div>
+                    <div class="tc-kpi__value">${formatCurrency(data.top_sales_customers[0]?.total_sales || 0)}</div>
+                    <div class="tc-kpi__sub">${data.top_sales_customers[0]?.customer_name || '-'}</div>
+                </div>
+                <div class="tc-kpi tc-kpi--violet">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Top 10 Share</div>
+                        <div class="tc-kpi__icon">📊</div>
+                    </div>
+                    <div class="tc-kpi__value">${data.top_sales_customers.slice(0, 10).reduce((sum, c) => sum + (c.total_sales || 0), 0) > 0 && data.sales.total_sales_amount > 0 ? ((data.top_sales_customers.slice(0, 10).reduce((sum, c) => sum + (c.total_sales || 0), 0) / data.sales.total_sales_amount) * 100).toFixed(1) : '0.0'}%</div>
+                    <div class="tc-kpi__sub">Of Total Sales</div>
+                </div>
+                <div class="tc-kpi tc-kpi--rose">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Avg Ticket</div>
+                        <div class="tc-kpi__icon">💰</div>
+                    </div>
+                    <div class="tc-kpi__value">${data.top_sales_customers.length > 0 ? formatCurrency(data.top_sales_customers.reduce((sum, c) => sum + (c.avg_invoice_value || 0), 0) / data.top_sales_customers.length) : '-'}</div>
+                    <div class="tc-kpi__sub">Per Customer</div>
+                </div>
+            </div>
+            ` : ''}
+
             <!-- Top Sales Customers Table -->
             ${data.top_sales_customers && data.top_sales_customers.length > 0 ? `
             <div class="tc-section">
                 <h3 class="tc-section__title">🏆 Top 10 Sales Customers</h3>
+                <div class="tc-section__hint">Your most valuable customers ranked by total sales volume</div>
                 <div class="tc-table-wrap">
                     <table class="tc-table">
                         <thead>
@@ -286,9 +364,10 @@ function renderDashboardReport(data) {
                 const percentOfTotal = data.sales && data.sales.total_sales_amount > 0 
                     ? ((customer.total_sales / data.sales.total_sales_amount) * 100).toFixed(1)
                     : '0.0';
+                const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '';
                 return `
                             <tr>
-                                <td class="tc-center tc-fw-600 tc-text-primary">${idx + 1}</td>
+                                <td class="tc-center tc-fw-600 tc-text-primary">${medal} ${idx + 1}</td>
                                 <td class="tc-fw-600">${customer.customer_name || '-'}</td>
                                 <td class="tc-right tc-fw-600 tc-text-success">${formatCurrency(customer.total_sales || 0)}</td>
                                 <td class="tc-center">${(customer.invoice_count || 0).toLocaleString()}</td>
@@ -324,10 +403,48 @@ function renderDashboardReport(data) {
                 </div>
                 <div class="tc-tab-panel tc-tab-panel--active" id="tab-returns">
 
+            <!-- Returns Summary KPIs -->
+            ${data.sales_returns_summary ? `
+            <div class="tc-kpi-grid">
+                <div class="tc-kpi tc-kpi--rose">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Total Returns</div>
+                        <div class="tc-kpi__icon">↩️</div>
+                    </div>
+                    <div class="tc-kpi__value">${formatCurrency(data.sales_returns_summary.total_returns || 0)}</div>
+                    <div class="tc-kpi__sub">Credit Notes</div>
+                </div>
+                <div class="tc-kpi tc-kpi--amber">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Return Rate</div>
+                        <div class="tc-kpi__icon">📉</div>
+                    </div>
+                    <div class="tc-kpi__value">${data.sales_returns_summary.return_rate ? data.sales_returns_summary.return_rate.toFixed(2) : '0.00'}%</div>
+                    <div class="tc-kpi__sub">Of Total Sales</div>
+                </div>
+                <div class="tc-kpi tc-kpi--violet">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Return Count</div>
+                        <div class="tc-kpi__icon">📋</div>
+                    </div>
+                    <div class="tc-kpi__value">${data.sales_returns_summary.return_count || 0}</div>
+                    <div class="tc-kpi__sub">Transactions</div>
+                </div>
+                <div class="tc-kpi tc-kpi--teal">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Avg Return</div>
+                        <div class="tc-kpi__icon">💰</div>
+                    </div>
+                    <div class="tc-kpi__value">${data.sales_returns_summary.return_count > 0 ? formatCurrency((data.sales_returns_summary.total_returns || 0) / data.sales_returns_summary.return_count) : '-'}</div>
+                    <div class="tc-kpi__sub">Per Transaction</div>
+                </div>
+            </div>
+            ` : ''}
+
             ${data.monthly_sales_returns_trend && data.monthly_sales_returns_trend.length > 0 ? `
             <div class="tc-section">
                 <h3 class="tc-section__title">↩️ Monthly Returns / Credit Notes Trend</h3>
-                <div class="tc-section__hint">(Credit Notes / Sales Returns amount by month)</div>
+                <div class="tc-section__hint">Track return patterns over time - identify months with higher return rates</div>
                 <div class="tc-chart tc-chart--h320">
                     <canvas id="monthlyReturnsChart"></canvas>
                 </div>
@@ -338,10 +455,49 @@ function renderDashboardReport(data) {
 
                 <div class="tc-tab-panel tc-tab-panel--active" id="tab-accounts">
 
+            <!-- Accounts Summary KPIs -->
+            ${(data.top_debtors || data.top_creditors) ? `
+            <div class="tc-kpi-grid">
+                <div class="tc-kpi tc-kpi--mint">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Total Debtors</div>
+                        <div class="tc-kpi__icon">💚</div>
+                    </div>
+                    <div class="tc-kpi__value">${data.top_debtors ? formatCurrency(data.top_debtors.reduce((sum, d) => sum + (d.balance || 0), 0)) : '-'}</div>
+                    <div class="tc-kpi__sub">Receivables</div>
+                </div>
+                <div class="tc-kpi tc-kpi--rose">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Total Creditors</div>
+                        <div class="tc-kpi__icon">❤️</div>
+                    </div>
+                    <div class="tc-kpi__value">${data.top_creditors ? formatCurrency(data.top_creditors.reduce((sum, c) => sum + (c.balance || 0), 0)) : '-'}</div>
+                    <div class="tc-kpi__sub">Payables</div>
+                </div>
+                <div class="tc-kpi tc-kpi--sky">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Net Balance</div>
+                        <div class="tc-kpi__icon">⚖️</div>
+                    </div>
+                    <div class="tc-kpi__value">${data.top_debtors && data.top_creditors ? formatCurrency(data.top_debtors.reduce((sum, d) => sum + (d.balance || 0), 0) - data.top_creditors.reduce((sum, c) => sum + (c.balance || 0), 0)) : '-'}</div>
+                    <div class="tc-kpi__sub">Difference</div>
+                </div>
+                <div class="tc-kpi tc-kpi--violet">
+                    <div class="tc-kpi__top">
+                        <div class="tc-kpi__label">Top Parties</div>
+                        <div class="tc-kpi__icon">👥</div>
+                    </div>
+                    <div class="tc-kpi__value">${((data.top_debtors?.length || 0) + (data.top_creditors?.length || 0))}</div>
+                    <div class="tc-kpi__sub">Active</div>
+                </div>
+            </div>
+            ` : ''}
+
             <!-- Top Debtors and Creditors -->
             <div class="tc-grid tc-grid--2 tc-mb-16">
                 <div class="tc-section">
-                    <h3 class="tc-section__title">Top 10 Debtors</h3>
+                    <h3 class="tc-section__title">💚 Top 10 Debtors</h3>
+                    <div class="tc-section__hint">Parties who owe you money - track receivables</div>
                     <div class="tc-table-wrap">
                         <table class="tc-table">
                             <thead>
@@ -377,7 +533,8 @@ function renderDashboardReport(data) {
                     </div>
                 </div>
                 <div class="tc-section">
-                    <h3 class="tc-section__title">Top 10 Creditors</h3>
+                    <h3 class="tc-section__title">❤️ Top 10 Creditors</h3>
+                    <div class="tc-section__hint">Parties you owe money to - manage payables</div>
                     <div class="tc-table-wrap">
                         <table class="tc-table">
                             <thead>
@@ -416,7 +573,8 @@ function renderDashboardReport(data) {
             
             <!-- Voucher Type Summary -->
             <div class="tc-section">
-                <h3 class="tc-section__title">Voucher Type Summary</h3>
+                <h3 class="tc-section__title">📋 Voucher Type Summary</h3>
+                <div class="tc-section__hint">Breakdown of all transaction types and their financial impact</div>
                 <div class="tc-table-wrap">
                     <table class="tc-table">
                         <thead>
@@ -437,8 +595,8 @@ function renderDashboardReport(data) {
                 <tr>
                     <td class="tc-fw-600">${vt.type || '-'}</td>
                     <td class="tc-right">${vt.count || 0}</td>
-                    <td class="tc-right tc-text-success">${formatCurrency(vt.debit || 0)}</td>
-                    <td class="tc-right tc-text-danger">${formatCurrency(vt.credit || 0)}</td>
+                    <td class="tc-right tc-text-success tc-fw-600">${formatCurrency(vt.debit || 0)}</td>
+                    <td class="tc-right tc-text-danger tc-fw-600">${formatCurrency(vt.credit || 0)}</td>
                 </tr>
             `;
         });
@@ -709,6 +867,50 @@ function renderDashboardReport(data) {
         // ignore
     }
     
+    // Calculate and populate Trends KPIs
+    if (data.monthly_sales_trend && data.monthly_sales_trend.length > 0) {
+        try {
+            const trend = data.monthly_sales_trend;
+            const salesAmounts = trend.map(item => _num(item && item.sales_amount));
+            const totalSales = salesAmounts.reduce((sum, val) => sum + val, 0);
+            const avgMonthly = totalSales / trend.length;
+            
+            // Find peak month
+            let peakIdx = 0;
+            let peakAmount = salesAmounts[0];
+            salesAmounts.forEach((amt, idx) => {
+                if (amt > peakAmount) {
+                    peakAmount = amt;
+                    peakIdx = idx;
+                }
+            });
+            
+            // Calculate growth rate (last month vs previous)
+            let growthRate = '-';
+            if (trend.length >= 2) {
+                const last = salesAmounts[trend.length - 1];
+                const prev = salesAmounts[trend.length - 2];
+                if (prev > 0) {
+                    const change = ((last - prev) / prev) * 100;
+                    growthRate = change >= 0 ? `+${change.toFixed(1)}%` : `${change.toFixed(1)}%`;
+                }
+            }
+            
+            // Populate KPI values
+            const peakMonthEl = document.getElementById('trendsPeakMonth');
+            const peakAmountEl = document.getElementById('trendsPeakAmount');
+            const avgMonthlyEl = document.getElementById('trendsAvgMonthly');
+            const growthRateEl = document.getElementById('trendsGrowthRate');
+            
+            if (peakMonthEl) peakMonthEl.textContent = _monthLabel(trend[peakIdx]);
+            if (peakAmountEl) peakAmountEl.textContent = formatCurrency(peakAmount);
+            if (avgMonthlyEl) avgMonthlyEl.textContent = formatCurrency(avgMonthly);
+            if (growthRateEl) growthRateEl.textContent = growthRate;
+        } catch (e) {
+            console.warn('Error calculating Trends KPIs:', e);
+        }
+    }
+
     // Render Monthly Sales Trend Chart using Chart.js
     if (data.sales && data.monthly_sales_trend && data.monthly_sales_trend.length > 0) {
         if (typeof Chart === 'undefined') {
