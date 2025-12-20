@@ -10,6 +10,12 @@ function renderLedgerReport(data) {
     // Store data for export
     currentLedgerData = data;
     
+    // Hide loading and empty states
+    const loadingMessage = document.getElementById('loadingMessage');
+    const emptyMessage = document.getElementById('emptyMessage');
+    if (loadingMessage) loadingMessage.style.display = 'none';
+    if (emptyMessage) emptyMessage.style.display = 'none';
+    
     const contentDiv = document.getElementById('reportContent');
     if (!contentDiv) {
         console.error('reportContent element not found');
@@ -20,6 +26,13 @@ function renderLedgerReport(data) {
     const periodControls = document.getElementById('periodControls');
     if (periodControls) {
         periodControls.style.display = 'block';
+    }
+    
+    // Check if data is empty
+    if (!data || !data.transactions || data.transactions.length === 0) {
+        if (emptyMessage) emptyMessage.style.display = 'block';
+        contentDiv.innerHTML = '';
+        return;
     }
     
     // Build HTML - Class-based (no inline styles)

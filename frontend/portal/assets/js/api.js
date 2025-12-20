@@ -124,6 +124,14 @@ function loadLedgers() {
  * @param {string} fromPage - Page to return to
  */
 function loadLedgerReport(apiUrl, fromPage) {
+    // Show loading state
+    const loadingMessage = document.getElementById('loadingMessage');
+    const emptyMessage = document.getElementById('emptyMessage');
+    const reportContent = document.getElementById('reportContent');
+    
+    if (loadingMessage) loadingMessage.style.display = 'block';
+    if (emptyMessage) emptyMessage.style.display = 'none';
+    if (reportContent) reportContent.innerHTML = '';
     // Don't call showPage if we're on a standalone page (ledger-report.html)
     const isStandalonePage = window.location.pathname.includes('ledger-report.html');
     if (!isStandalonePage) {
@@ -136,12 +144,6 @@ function loadLedgerReport(apiUrl, fromPage) {
         console.error('reportContent element not found');
         return;
     }
-    contentDiv.innerHTML = `
-        <div style="text-align: center; padding: 50px;">
-            <div class="spinner" style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto;"></div>
-            <div style="color: #3498db; font-size: 18px; margin: 20px 0;">Loading ledger report...</div>
-        </div>
-    `;
     
     fetch(apiUrl)
         .then(response => {
@@ -151,17 +153,19 @@ function loadLedgerReport(apiUrl, fromPage) {
             return response.json();
         })
         .then(data => {
+            if (loadingMessage) loadingMessage.style.display = 'none';
             renderLedgerReport(data);
         })
         .catch(error => {
             console.error('Error loading ledger report:', error);
-            contentDiv.innerHTML = `
-                <div style="text-align: center; padding: 50px; color: #e74c3c;">
-                    <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
-                    <div style="font-size: 20px; font-weight: 600; margin: 20px 0;">Error loading ledger report</div>
-                    <div style="color: #7f8c8d; font-size: 14px;">${error.message}</div>
-                </div>
-            `;
+            if (loadingMessage) loadingMessage.style.display = 'none';
+            const errorMessage = document.getElementById('errorMessage');
+            if (errorMessage) {
+                errorMessage.textContent = `Error loading ledger report: ${error.message}`;
+                errorMessage.style.display = 'block';
+            }
+            if (emptyMessage) emptyMessage.style.display = 'block';
+            if (contentDiv) contentDiv.innerHTML = '';
         });
 }
 
@@ -263,6 +267,17 @@ function loadDashboardReport(apiUrl, fromPage) {
  * Load Sales Register report from API
  */
 function loadSalesRegister(apiUrl, fromPage) {
+    // Show loading state
+    const loadingMessage = document.getElementById('loadingMessage');
+    const emptyMessage = document.getElementById('emptyMessage');
+    const errorMessage = document.getElementById('errorMessage');
+    const reportContent = document.getElementById('reportContent');
+    
+    if (loadingMessage) loadingMessage.style.display = 'block';
+    if (emptyMessage) emptyMessage.style.display = 'none';
+    if (errorMessage) errorMessage.style.display = 'none';
+    if (reportContent) reportContent.innerHTML = '';
+    
     const isStandalonePage = window.location.pathname.includes('sales-register.html');
     if (!isStandalonePage) {
         navigationHistory.push(fromPage);
@@ -275,8 +290,6 @@ function loadSalesRegister(apiUrl, fromPage) {
         return;
     }
     
-    contentDiv.innerHTML = `<div style="text-align: center; padding: 50px;"><div class="spinner" style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto;"></div><div style="color: #3498db; font-size: 18px; margin: 20px 0;">Loading sales register...</div></div>`;
-    
     fetch(apiUrl)
         .then(response => {
             if (!response.ok) {
@@ -285,6 +298,7 @@ function loadSalesRegister(apiUrl, fromPage) {
             return response.json();
         })
         .then(data => {
+            if (loadingMessage) loadingMessage.style.display = 'none';
             if (typeof window !== 'undefined') {
                 window.salesRegisterData = data;
             }
@@ -293,6 +307,20 @@ function loadSalesRegister(apiUrl, fromPage) {
         })
         .catch(error => {
             console.error('Error loading sales register:', error);
+            if (loadingMessage) loadingMessage.style.display = 'none';
+            const errorMessage = document.getElementById('errorMessage');
+            if (errorMessage) {
+                errorMessage.textContent = `Error loading sales register: ${error.message}`;
+                errorMessage.style.display = 'block';
+            }
+            const emptyMessage = document.getElementById('emptyMessage');
+            if (emptyMessage) emptyMessage.style.display = 'block';
+            if (contentDiv) contentDiv.innerHTML = '';
+            if (errorMessage) {
+                errorMessage.textContent = `Error loading sales register: ${error.message}`;
+                errorMessage.style.display = 'block';
+            }
+            if (emptyMessage) emptyMessage.style.display = 'block';
             contentDiv.innerHTML = `<div style="text-align: center; padding: 50px; color: #e74c3c;"><div style="font-size: 48px; margin-bottom: 20px;">⚠️</div><div style="font-size: 20px; font-weight: 600; margin: 20px 0;">Error loading sales register</div><div style="color: #7f8c8d; font-size: 14px;">${error.message}</div></div>`;
         });
 }

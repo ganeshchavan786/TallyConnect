@@ -52,13 +52,109 @@
     
     <!-- Main Content -->
     <div class="main-content">
-        <div class="page active">
-            <a href="reports.html" class="back-button">← Back to Reports</a>
-            <div id="reportContent" class="report-viewer">
-                <div style="text-align: center; padding: 50px;">
-                    <div class="spinner" style="margin: 20px auto;"></div>
-                    <div style="color: #3498db; font-size: 18px; margin: 20px 0;">Loading outstanding report...</div>
+        <div class="page active" style="position: relative;">
+            <h1 class="page-title">Outstanding Report</h1>
+            <p class="page-subtitle">Bill-wise Outstanding Report (Receivables & Payables)</p>
+            
+            <!-- Controls Panel -->
+            <div class="tc-panel tc-mb-20">
+                <div class="controls-row">
+                    <div class="form-group" style="flex: 1; min-width: 200px;">
+                        <label for="reportType" style="display: block; margin-bottom: 5px; color: var(--muted); font-weight: 600; font-size: 12px;">Report Type</label>
+                        <select id="reportType" class="filter-select" style="width: 100%;">
+                            <option value="receivables">Receivables (Sundry Debtors)</option>
+                            <option value="payables">Payables (Sundry Creditors)</option>
+                            <option value="both">Both</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 200px;">
+                        <label for="asOnDate" style="display: block; margin-bottom: 5px; color: var(--muted); font-weight: 600; font-size: 12px;">As On Date</label>
+                        <input type="date" id="asOnDate" class="filter-select" style="width: 100%; padding: 8px 12px;">
+                    </div>
+                    <div class="form-group" style="flex: 0 0 auto; min-width: auto; display: flex; align-items: flex-end; gap: 8px; padding-left: 12px;">
+                        <button onclick="exportOutstandingReport('csv')" class="tc-btn tc-btn--success" style="white-space: nowrap;">
+                            📄 CSV
+                        </button>
+                        <button onclick="exportOutstandingReport('excel')" class="tc-btn tc-btn--primary" style="white-space: nowrap;">
+                            📊 Excel
+                        </button>
+                        <button onclick="exportOutstandingReport('pdf')" class="tc-btn tc-btn--danger" style="white-space: nowrap;">
+                            📑 PDF
+                        </button>
+                    </div>
                 </div>
+            </div>
+
+            <!-- Error Message -->
+            <div id="errorMessage" class="tc-error" style="display: none;"></div>
+
+            <!-- Info Section -->
+            <div id="infoSection" class="tc-panel tc-mb-20" style="display: none;">
+                <h2 style="font-size: 18px; margin-bottom: 16px; color: var(--text);">Outstanding Summary</h2>
+                <div class="tc-grid tc-grid--4">
+                    <div class="tc-metric tc-metric--slate">
+                        <div class="tc-metric__label">Company</div>
+                        <div class="tc-metric__value" id="companyNameLabel">-</div>
+                    </div>
+                    <div class="tc-metric tc-metric--blue">
+                        <div class="tc-metric__label">Report Type</div>
+                        <div class="tc-metric__value" id="reportTypeLabel">-</div>
+                    </div>
+                    <div class="tc-metric tc-metric--green">
+                        <div class="tc-metric__label">As On Date</div>
+                        <div class="tc-metric__value" id="asOnDateLabel">-</div>
+                    </div>
+                    <div class="tc-metric tc-metric--purple">
+                        <div class="tc-metric__label">Total Outstanding</div>
+                        <div class="tc-metric__value" id="totalOutstanding">-</div>
+                    </div>
+                </div>
+                <div class="tc-grid tc-grid--2" style="margin-top: 12px;">
+                    <div class="tc-metric tc-metric--green">
+                        <div class="tc-metric__label">No. of Bills</div>
+                        <div class="tc-metric__value" id="ledgerCount">-</div>
+                    </div>
+                    <div class="tc-metric tc-metric--blue">
+                        <div class="tc-metric__label">Receivables / Payables</div>
+                        <div class="tc-metric__value" id="receivablesPayables">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading Indicator -->
+            <div id="loadingMessage" class="tc-loading" style="display: none;">
+                <div class="spinner" style="margin: 20px auto;"></div>
+                <div class="tc-loading__text">Loading outstanding report...</div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyMessage" class="tc-empty-state" style="display: none;">
+                <div class="tc-empty-state__icon">📋</div>
+                <div class="tc-empty-state__title">No Outstanding Found</div>
+                <div class="tc-empty-state__text">No outstanding bills found for the selected criteria.</div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="tc-table-wrap">
+                <table id="outstandingTable" class="tc-outstanding-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Sr. No.</th>
+                            <th>Ledger Name</th>
+                            <th>Bill Ref</th>
+                            <th>Bill Date</th>
+                            <th>Ref Type</th>
+                            <th>Vch Type</th>
+                            <th>Vch No</th>
+                            <th class="tc-right">Outstanding Amount</th>
+                            <th>Type</th>
+                            <th>Due On</th>
+                            <th class="tc-right">Overdue Days</th>
+                        </tr>
+                    </thead>
+                    <tbody id="outstandingTableBody">
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -69,24 +165,7 @@
     <script src="assets/js/utils/filters.js"></script>
     <script src="assets/js/api.js"></script>
     <script src="assets/js/components/companies.js"></script>
-    <script src="assets/js/components/ledgers.js"></script>
     <script src="assets/js/components/outstanding-report.js"></script>
     <script src="assets/js/app.js"></script>
-    <script>
-        // Load report from sessionStorage (override app.js window.onload)
-        window.addEventListener('load', function() {
-            const savedCompany = sessionStorage.getItem('selectedCompany');
-            if (savedCompany) {
-                selectedCompany = JSON.parse(savedCompany);
-                const safeGuid = selectedCompany.guid.replace(/-/g, '_').replace(/\./g, '_');
-                const safeAlterid = String(selectedCompany.alterid).replace(/\./g, '_');
-                const apiUrl = `api/outstanding-data/${safeGuid}_${safeAlterid}`;
-                loadOutstandingReport(apiUrl, 'reports');
-            } else {
-                window.location.href = 'companies.html';
-            }
-        });
-    </script>
 </body>
 </html>
-

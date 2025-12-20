@@ -52,43 +52,60 @@
     
     <!-- Main Content -->
     <div class="main-content">
-        <div class="page active">
-            <a href="reports.html" class="back-button">← Back to Reports</a>
+        <div class="page active" style="position: relative;">
+            <h1 class="page-title">Sales Register</h1>
+            <p class="page-subtitle">Monthly sales summary and voucher details</p>
             
             <!-- Period Selection Controls -->
-            <div id="periodControls" style="display: none; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
-                <div style="display: flex; gap: 15px; align-items: end; flex-wrap: wrap; margin-bottom: 15px;">
-                    <div style="flex: 1; min-width: 200px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 14px;">From Date</label>
-                        <input type="date" id="fromDate" style="width: 100%; padding: 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 14px;">
+            <div id="periodControls" class="tc-panel tc-mb-20" style="display: none;">
+                <div class="controls-row">
+                    <div class="form-group" style="flex: 1; min-width: 200px;">
+                        <label for="fromDate" style="display: block; margin-bottom: 5px; color: var(--muted); font-weight: 600; font-size: 12px;">From Date</label>
+                        <input type="date" id="fromDate" class="filter-select" style="width: 100%; padding: 8px 12px;">
                     </div>
-                    <div style="flex: 1; min-width: 200px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 14px;">To Date</label>
-                        <input type="date" id="toDate" style="width: 100%; padding: 10px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 14px;">
+                    <div class="form-group" style="flex: 1; min-width: 200px;">
+                        <label for="toDate" style="display: block; margin-bottom: 5px; color: var(--muted); font-weight: 600; font-size: 12px;">To Date</label>
+                        <input type="date" id="toDate" class="filter-select" style="width: 100%; padding: 8px 12px;">
                     </div>
-                    <div>
-                        <button id="applyPeriodBtn" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;">
+                    <div class="form-group" style="display: flex; align-items: flex-end; gap: 10px;">
+                        <button id="applyPeriodBtn" class="tc-btn tc-btn--primary" style="padding: 8px 20px;">
                             Apply Period
                         </button>
                     </div>
                 </div>
                 
                 <!-- View Toggle -->
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <label style="font-weight: 600; color: #495057; font-size: 14px;">View:</label>
-                    <button id="viewMonthly" class="view-toggle active" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                <div class="controls-row" style="margin-top: 12px; align-items: center;">
+                    <label style="font-weight: 600; color: var(--muted); font-size: 12px; margin-right: 10px;">View:</label>
+                    <button id="viewMonthly" class="tc-btn" style="padding: 6px 16px; font-size: 12px; background: rgba(37, 99, 235, 0.1); color: rgba(37, 99, 235, 0.9); border: 1px solid rgba(37, 99, 235, 0.3);">
                         Monthly Summary
                     </button>
-                    <button id="viewVouchers" class="view-toggle" style="padding: 8px 16px; background: #95a5a6; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                    <button id="viewVouchers" class="tc-btn" style="padding: 6px 16px; font-size: 12px; background: rgba(91, 107, 127, 0.1); color: rgba(91, 107, 127, 0.9); border: 1px solid rgba(91, 107, 127, 0.3);">
                         Voucher List
                     </button>
                 </div>
             </div>
+
+            <!-- Error Message -->
+            <div id="errorMessage" class="tc-error" style="display: none;"></div>
+
+            <!-- Loading Indicator -->
+            <div id="loadingMessage" class="tc-loading" style="display: none;">
+                <div class="spinner" style="margin: 20px auto;"></div>
+                <div class="tc-loading__text">Loading sales register...</div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyMessage" class="tc-empty-state" style="display: none;">
+                <div class="tc-empty-state__icon">💰</div>
+                <div class="tc-empty-state__title">No Sales Data Found</div>
+                <div class="tc-empty-state__text">No sales transactions found for the selected period.</div>
+            </div>
             
             <div id="reportContent" class="report-viewer">
-                <div style="text-align: center; padding: 50px;">
+                <div class="tc-loading">
                     <div class="spinner" style="margin: 20px auto;"></div>
-                    <div style="color: #3498db; font-size: 18px; margin: 20px 0;">Loading sales register...</div>
+                    <div class="tc-loading__text">Loading sales register...</div>
                 </div>
             </div>
         </div>
@@ -155,8 +172,18 @@
             }
             
             // Update button styles
-            document.getElementById('viewMonthly').style.background = viewType === 'monthly' ? '#3498db' : '#95a5a6';
-            document.getElementById('viewVouchers').style.background = viewType === 'vouchers' ? '#3498db' : '#95a5a6';
+            const monthlyBtn = document.getElementById('viewMonthly');
+            const vouchersBtn = document.getElementById('viewVouchers');
+            if (monthlyBtn) {
+                monthlyBtn.style.background = viewType === 'monthly' ? 'rgba(37, 99, 235, 0.2)' : 'rgba(91, 107, 127, 0.1)';
+                monthlyBtn.style.color = viewType === 'monthly' ? 'rgba(37, 99, 235, 1)' : 'rgba(91, 107, 127, 0.9)';
+                monthlyBtn.style.borderColor = viewType === 'monthly' ? 'rgba(37, 99, 235, 0.5)' : 'rgba(91, 107, 127, 0.3)';
+            }
+            if (vouchersBtn) {
+                vouchersBtn.style.background = viewType === 'vouchers' ? 'rgba(37, 99, 235, 0.2)' : 'rgba(91, 107, 127, 0.1)';
+                vouchersBtn.style.color = viewType === 'vouchers' ? 'rgba(37, 99, 235, 1)' : 'rgba(91, 107, 127, 0.9)';
+                vouchersBtn.style.borderColor = viewType === 'vouchers' ? 'rgba(37, 99, 235, 0.5)' : 'rgba(91, 107, 127, 0.3)';
+            }
             
             // Re-render with current data (use window.salesRegisterData if available)
             const data = window.salesRegisterData || salesRegisterData;

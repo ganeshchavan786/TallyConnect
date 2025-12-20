@@ -12,6 +12,12 @@ let salesRegisterVoucherService = null;
  * @param {string} viewType - 'monthly' or 'vouchers'
  */
 function renderSalesRegister(data, viewType = 'monthly') {
+    // Hide loading and empty states
+    const loadingMessage = document.getElementById('loadingMessage');
+    const emptyMessage = document.getElementById('emptyMessage');
+    if (loadingMessage) loadingMessage.style.display = 'none';
+    if (emptyMessage) emptyMessage.style.display = 'none';
+    
     const contentDiv = document.getElementById('reportContent');
     if (!contentDiv) {
         console.error('reportContent element not found');
@@ -21,6 +27,13 @@ function renderSalesRegister(data, viewType = 'monthly') {
     // Store data globally for view toggle and drill-down
     if (typeof window !== 'undefined') {
         window.salesRegisterData = data;
+    }
+    
+    // Check if data is empty
+    if (!data || (!data.monthly_summary && !data.vouchers)) {
+        if (emptyMessage) emptyMessage.style.display = 'block';
+        contentDiv.innerHTML = '';
+        return;
     }
     
     if (viewType === 'monthly') {

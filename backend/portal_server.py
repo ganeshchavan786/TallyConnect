@@ -117,6 +117,10 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
         if path == '/' or path == '':
             path = '/index.html'
         
+        # Debug logging for file requests
+        if not path.startswith('/api/') and not path.startswith('/logo') and not path.startswith('/favicon'):
+            print(f"[DEBUG] File request: path={path}, PORTAL_DIR={PORTAL_DIR}")
+        
         # API endpoints
         if path.startswith('/api/'):
             self.handle_api(path, parsed_path)
@@ -164,7 +168,8 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                 except Exception as e:
                     self.send_error(500, f"Error reading file: {str(e)}")
             else:
-                # File not found
+                # File not found - log for debugging
+                print(f"[DEBUG] File not found: path={path}, file_path={file_path}, full_path={full_path}, PORTAL_DIR={PORTAL_DIR}, exists={os.path.exists(full_path)}")
                 self.send_error(404, f"File not found: {path}")
 
     def send_brand_asset(self, path: str):
@@ -224,6 +229,10 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             # Companies list
             if path == '/api/companies.json' or path == '/api/companies.json/':
                 self.send_companies()
+            elif path == '/api/companies' or path == '/api/companies/':
+                self.send_companies_list()
+            elif path.startswith('/api/period-info'):
+                self.send_period_info(path, parsed)
             
             # Ledgers for company
             elif path.startswith('/api/ledgers/'):
@@ -235,6 +244,8 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             
             elif path.startswith('/api/outstanding-data/'):
                 self.send_outstanding_data(path, parsed)
+            elif path.startswith('/api/outstanding-report-1'):
+                self.send_outstanding_report_1(path, parsed)
             
             elif path.startswith('/api/dashboard-data/'):
                 self.send_dashboard_data(path, parsed)
@@ -310,6 +321,77 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             traceback.print_exc()
             # Return empty array instead of error (so UI doesn't break)
             self.send_json_response([])
+    
+    def send_companies_list(self):
+        """Send list of company names (for Outstanding Report 1)."""
+        try:
+            db_path = os.path.join(get_base_dir(), "TallyConnectDb.db")
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # Get distinct company names from vouchers
+            rows = cursor.execute("""
+                SELECT DISTINCT TRIM(company_name) as company_name
+                FROM vouchers
+                WHERE company_name IS NOT NULL AND TRIM(company_name) != ''
+                ORDER BY company_name
+            """).fetchall()
+            
+            conn.close()
+            
+            companies = [r[0] for r in rows if r[0]]
+            print(f"[INFO] Companies list: Found {len(companies)} companies")
+            self.send_json_response(companies)
+            
+        except Exception as e:
+            print(f"[ERROR] send_companies_list: {e}")
+            import traceback
+            traceback.print_exc()
+            self.send_error(500, f"Error fetching companies: {str(e)}")
+    
+    def send_period_info(self, path, parsed):
+        """Send min and max dates from database."""
+        try:
+            query_params = {}
+            if parsed.query:
+                query_params = {k: v[0] if isinstance(v, list) and len(v) > 0 else v 
+                               for k, v in parse_qs(parsed.query).items()}
+            
+            company_name = query_params.get('company', '')
+            
+            db_path = os.path.join(get_base_dir(), "TallyConnectDb.db")
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            if company_name:
+                result = cursor.execute("""
+                    SELECT MIN(vch_date) as from_date, MAX(vch_date) as to_date
+                    FROM vouchers
+                    WHERE company_name = ?
+                """, (company_name,)).fetchone()
+            else:
+                result = cursor.execute("""
+                    SELECT MIN(vch_date) as from_date, MAX(vch_date) as to_date
+                    FROM vouchers
+                """).fetchone()
+            
+            conn.close()
+            
+            response = {
+                "from_date": result[0] if result and result[0] else "2025-04-01",
+                "to_date": result[1] if result and result[1] else "2026-03-31"
+            }
+            
+            self.send_json_response(response)
+            
+        except Exception as e:
+            print(f"[ERROR] send_period_info: {e}")
+            import traceback
+            traceback.print_exc()
+            self.send_json_response({
+                "from_date": "2025-04-01",
+                "to_date": "2026-03-31"
+            })
     
     def send_ledgers(self, path):
         """Send ledgers list for a company."""
@@ -986,6 +1068,169 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             import traceback
             traceback.print_exc()
             self.send_error(500, f"Error fetching outstanding data: {str(e)}")
+    
+    def send_outstanding_report_1(self, path, parsed):
+        """
+        Send bill-wise Outstanding Report (Tally style) as JSON.
+        Based on reference logic: Bill-wise calculation with Receivables/Payables.
+        """
+        try:
+            # Parse query parameters
+            query_params = {}
+            if parsed.query:
+                query_params = {k: v[0] if isinstance(v, list) and len(v) > 0 else v 
+                               for k, v in parse_qs(parsed.query).items()}
+            
+            report_type = query_params.get('type', 'receivables')  # receivables, payables, both
+            as_on_date = query_params.get('as_on_date', '')
+            company_name = query_params.get('company', '')
+            
+            # Connect to database
+            db_path = os.path.join(get_base_dir(), "TallyConnectDb.db")
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # If company not provided, get first company as default
+            if not company_name:
+                company_row = cursor.execute(
+                    "SELECT DISTINCT company_name FROM vouchers WHERE company_name IS NOT NULL AND TRIM(company_name) != '' LIMIT 1"
+                ).fetchone()
+                if company_row:
+                    company_name = company_row['company_name']
+                else:
+                    conn.close()
+                    self.send_error(404, "No companies found in database")
+                    return
+            
+            # Get period info
+            min_max_dates = cursor.execute(
+                "SELECT MIN(vch_date) as from_date, MAX(vch_date) as to_date FROM vouchers WHERE company_name = ?",
+                (company_name,)
+            ).fetchone()
+            
+            db_min_date = min_max_dates['from_date'] if min_max_dates and min_max_dates['from_date'] else datetime.now().strftime('%Y-%m-%d')
+            db_max_date = min_max_dates['to_date'] if min_max_dates and min_max_dates['to_date'] else datetime.now().strftime('%Y-%m-%d')
+            
+            if not as_on_date:
+                as_on_date = db_max_date
+            
+            from_date = query_params.get('from_date', db_min_date)
+            
+            print(f"[INFO] Outstanding Report 1: Company={company_name}, Type={report_type}, As On={as_on_date}")
+            
+            # Calculate outstanding bill-wise (for each bill reference)
+            # Receivables: Debit > Credit (positive balance = we need to receive)
+            # Payables: Credit > Debit (negative balance = we need to pay)
+            # Only include 'New Ref', 'Agst Ref', 'Advance' bill types
+            outstanding_query = """
+                SELECT 
+                    led_name as ledger_name,
+                    vch_led_bill_ref as bill_ref,
+                    MIN(vch_date) as bill_date,
+                    MIN(vch_led_bill_type) as bill_type,
+                    vch_type as voucher_type,
+                    vch_no as voucher_no,
+                    SUM(CASE WHEN vch_dr_amt IS NOT NULL THEN vch_dr_amt ELSE 0 END) as total_debit,
+                    SUM(CASE WHEN vch_cr_amt IS NOT NULL THEN vch_cr_amt ELSE 0 END) as total_credit,
+                    (SUM(CASE WHEN vch_dr_amt IS NOT NULL THEN vch_dr_amt ELSE 0 END) - 
+                     SUM(CASE WHEN vch_cr_amt IS NOT NULL THEN vch_cr_amt ELSE 0 END)) as balance
+                FROM vouchers
+                WHERE company_name = ?
+                AND led_name IS NOT NULL 
+                AND TRIM(led_name) != ''
+                AND vch_date <= ?
+                AND vch_led_bill_type IN ('New Ref', 'Agst Ref', 'Advance')
+                AND vch_led_bill_ref IS NOT NULL
+                AND TRIM(vch_led_bill_ref) != ''
+                AND (vch_type IS NULL OR TRIM(vch_type) = '' OR UPPER(TRIM(vch_type)) NOT LIKE '%PROFORMA%')
+                GROUP BY led_name, vch_led_bill_ref
+            """
+            
+            if report_type == "receivables":
+                outstanding_query += " HAVING balance > 0"
+                outstanding_query += " ORDER BY led_name, bill_date"
+            elif report_type == "payables":
+                outstanding_query += " HAVING balance < 0"
+                outstanding_query += " ORDER BY led_name, bill_date"
+            else:
+                outstanding_query += " HAVING balance != 0"
+                outstanding_query += " ORDER BY led_name, bill_date"
+            
+            rows = cursor.execute(outstanding_query, (company_name, as_on_date)).fetchall()
+            
+            data = []
+            total_outstanding_receivables = 0
+            total_outstanding_payables = 0
+            
+            # Parse as_on_date for overdue calculation
+            try:
+                as_on_datetime = datetime.strptime(as_on_date, '%Y-%m-%d')
+            except:
+                as_on_datetime = datetime.now()
+            
+            for row in rows:
+                balance = float(row['balance'] or 0)
+                outstanding_amt = abs(balance)
+                
+                if balance > 0:
+                    total_outstanding_receivables += balance
+                else:
+                    total_outstanding_payables += abs(balance)
+                
+                bill_type = row['bill_type'] or 'Unknown'
+                due_date_str = row['bill_date'] or ''
+                
+                # Calculate overdue days
+                overdue_days = 0
+                if due_date_str:
+                    try:
+                        due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
+                        diff_days = (as_on_datetime - due_date).days
+                        overdue_days = diff_days if diff_days > 0 else 0
+                    except:
+                        overdue_days = 0
+                
+                data.append({
+                    "ledger_name": row['ledger_name'],
+                    "bill_ref": row['bill_ref'],
+                    "bill_date": row['bill_date'],
+                    "bill_type": bill_type,
+                    "due_date": due_date_str,
+                    "overdue_days": overdue_days,
+                    "voucher_type": row['voucher_type'],
+                    "voucher_no": row['voucher_no'],
+                    "total_debit": float(row['total_debit'] or 0),
+                    "total_credit": float(row['total_credit'] or 0),
+                    "outstanding_amount": outstanding_amt,
+                    "balance": balance,
+                    "is_receivable": balance > 0
+                })
+            
+            conn.close()
+            
+            print(f"[INFO] Outstanding Report 1: Found {len(data)} bills")
+            print(f"       Receivables: {total_outstanding_receivables}, Payables: {total_outstanding_payables}")
+            
+            response_data = {
+                "report_type": report_type,
+                "company_name": company_name,
+                "as_on_date": as_on_date,
+                "from_date": from_date,
+                "data": data,
+                "total_outstanding_receivables": total_outstanding_receivables,
+                "total_outstanding_payables": total_outstanding_payables,
+                "total_outstanding": total_outstanding_receivables + total_outstanding_payables,
+                "count": len(data)
+            }
+            
+            self.send_json_response(response_data)
+            
+        except Exception as e:
+            print(f"[ERROR] send_outstanding_report_1: {e}")
+            import traceback
+            traceback.print_exc()
+            self.send_error(500, f"Error fetching outstanding report: {str(e)}")
     
     def send_dashboard_data(self, path, parsed):
         """Send dashboard data as JSON (no file generation)."""

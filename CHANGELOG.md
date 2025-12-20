@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.3] - 2025-12-19
+
+### Changed
+- **Outstanding Report UI improvements**
+  - Lightened color scheme for professional, white-matched theme
+  - Updated table headers, cells, and rows with lighter colors
+  - Improved hover effects and subtotal/total row styling
+  - Enhanced visual feedback for "As On Date" changes with immediate loading state
+
+### Fixed
+- **Company page UI cleanup**
+  - Removed unwanted details (ID, status badges, footer, stats section)
+  - Simplified company card design for professional appearance
+  - Fixed function name conflicts between `companies.js` and `filters.js`
+
+### Removed
+- **Navigation menu cleanup**
+  - Removed "Outstanding 1" menu item from navigation
+  - Removed "Finance" menu item from navigation
+
+### Added
+- **Outstanding Report enhancements**
+  - Added PDF, Excel, and CSV export functionality
+  - Implemented sessionStorage-based company selection (replaces dropdown)
+  - Auto-redirect to companies page if no company selected
+
 ## [1.5.1] - 2025-12-18
 
 ### Fixed

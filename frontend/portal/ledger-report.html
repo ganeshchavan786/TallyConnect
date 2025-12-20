@@ -52,26 +52,43 @@
     
     <!-- Main Content -->
     <div class="main-content">
-        <div class="page active">
-            <a href="ledgers.html" class="back-button">← Back to Ledgers</a>
+        <div class="page active" style="position: relative;">
+            <h1 class="page-title">Ledger Report</h1>
+            <p class="page-subtitle">Transaction details by ledger account</p>
             
             <!-- Period Selection Controls -->
-            <div id="periodControls" class="tc-panel tc-period-controls">
-                <div class="tc-period-row">
-                    <div class="tc-field">
-                        <label class="tc-label" for="fromDate">From Date</label>
-                        <input type="date" id="fromDate" class="tc-input">
+            <div id="periodControls" class="tc-panel tc-mb-20" style="display: none;">
+                <div class="controls-row">
+                    <div class="form-group" style="flex: 1; min-width: 200px;">
+                        <label for="fromDate" style="display: block; margin-bottom: 5px; color: var(--muted); font-weight: 600; font-size: 12px;">From Date</label>
+                        <input type="date" id="fromDate" class="filter-select" style="width: 100%; padding: 8px 12px;">
                     </div>
-                    <div class="tc-field">
-                        <label class="tc-label" for="toDate">To Date</label>
-                        <input type="date" id="toDate" class="tc-input">
+                    <div class="form-group" style="flex: 1; min-width: 200px;">
+                        <label for="toDate" style="display: block; margin-bottom: 5px; color: var(--muted); font-weight: 600; font-size: 12px;">To Date</label>
+                        <input type="date" id="toDate" class="filter-select" style="width: 100%; padding: 8px 12px;">
                     </div>
-                    <div>
-                        <button id="applyPeriodBtn" class="tc-btn tc-btn--primary">
+                    <div class="form-group" style="display: flex; align-items: flex-end;">
+                        <button id="applyPeriodBtn" class="tc-btn tc-btn--primary" style="padding: 8px 20px;">
                             Apply Period
                         </button>
                     </div>
                 </div>
+            </div>
+
+            <!-- Error Message -->
+            <div id="errorMessage" class="tc-error" style="display: none;"></div>
+
+            <!-- Loading Indicator -->
+            <div id="loadingMessage" class="tc-loading" style="display: none;">
+                <div class="spinner" style="margin: 20px auto;"></div>
+                <div class="tc-loading__text">Loading ledger report...</div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyMessage" class="tc-empty-state" style="display: none;">
+                <div class="tc-empty-state__icon">📗</div>
+                <div class="tc-empty-state__title">No Transactions Found</div>
+                <div class="tc-empty-state__text">No transactions found for the selected period.</div>
             </div>
             
             <div id="reportContent" class="report-viewer">
