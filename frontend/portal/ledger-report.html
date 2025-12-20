@@ -170,15 +170,19 @@
                 // Load report with initial dates
                 loadReportWithPeriod();
                 
-                // Add event listeners for period changes
+                // Add event listeners for period changes - AUTOMATIC RELOAD (Tally-style)
                 document.getElementById('applyPeriodBtn').addEventListener('click', loadReportWithPeriod);
                 document.getElementById('fromDate').addEventListener('change', function() {
-                    // Auto-reload when date changes (optional - can remove if you want manual Apply button only)
-                    // loadReportWithPeriod();
+                    // Auto-reload when date changes (Tally-style - instant update)
+                    if (currentCompany && currentLedger) {
+                        loadReportWithPeriod();
+                    }
                 });
                 document.getElementById('toDate').addEventListener('change', function() {
-                    // Auto-reload when date changes (optional - can remove if you want manual Apply button only)
-                    // loadReportWithPeriod();
+                    // Auto-reload when date changes (Tally-style - instant update)
+                    if (currentCompany && currentLedger) {
+                        loadReportWithPeriod();
+                    }
                 });
             } else {
                 document.getElementById('reportContent').innerHTML = `

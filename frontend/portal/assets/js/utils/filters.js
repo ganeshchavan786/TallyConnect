@@ -366,46 +366,70 @@ class TableFilterManager {
  * Apply filters and sorting to ledger list (Legacy - for backward compatibility)
  */
 function applyFiltersAndSort() {
+    // Debug: Check if allLedgers is defined and has data
+    console.log('[Filter] allLedgers type:', typeof allLedgers, 'length:', allLedgers?.length);
+    console.log('[Filter] allLedgers sample:', allLedgers?.slice(0, 2));
+    
     // Start with all ledgers
+    if (!Array.isArray(allLedgers)) {
+        console.error('[Filter] allLedgers is not an array!', allLedgers);
+        filteredLedgers = [];
+        return;
+    }
+    
     filteredLedgers = [...allLedgers];
     
+    console.log(`[Filter] Starting with ${allLedgers.length} ledgers`);
+    console.log(`[Filter] currentSearch: "${currentSearch}", currentFilter: "${currentFilter}", currentSort: "${currentSort}"`);
+    
     // Apply search filter
-    if (currentSearch) {
-        const searchLower = currentSearch.toLowerCase();
-        filteredLedgers = filteredLedgers.filter(ledger => 
-            ledger.name.toLowerCase().includes(searchLower)
-        );
+    if (currentSearch && currentSearch.trim()) {
+        const searchLower = currentSearch.toLowerCase().trim();
+        const beforeSearch = filteredLedgers.length;
+        filteredLedgers = filteredLedgers.filter(ledger => {
+            const name = ledger?.name || '';
+            return name.toLowerCase().includes(searchLower);
+        });
+        console.log(`[Filter] After search: ${filteredLedgers.length} (was ${beforeSearch})`);
     }
     
     // Apply count filter
-    if (currentFilter !== 'all') {
+    if (currentFilter && currentFilter !== 'all') {
+        const beforeFilter = filteredLedgers.length;
         filteredLedgers = filteredLedgers.filter(ledger => {
-            const count = ledger.count || 0;
+            const count = parseInt(ledger?.count) || 0;
+            let matches = false;
             switch(currentFilter) {
-                case '0-10': return count >= 0 && count <= 10;
-                case '11-50': return count >= 11 && count <= 50;
-                case '51-100': return count >= 51 && count <= 100;
-                case '100+': return count > 100;
-                default: return true;
+                case '0-10': matches = count >= 0 && count <= 10; break;
+                case '11-50': matches = count >= 11 && count <= 50; break;
+                case '51-100': matches = count >= 51 && count <= 100; break;
+                case '100+': matches = count > 100; break;
+                default: matches = true;
             }
+            return matches;
         });
+        console.log(`[Filter] After count filter (${currentFilter}): ${filteredLedgers.length} (was ${beforeFilter})`);
+    } else {
+        console.log(`[Filter] No count filter applied (filter="${currentFilter}")`);
     }
     
     // Apply sorting
     filteredLedgers.sort((a, b) => {
         switch(currentSort) {
             case 'name-asc':
-                return (a.name || '').localeCompare(b.name || '');
+                return (a?.name || '').localeCompare(b?.name || '');
             case 'name-desc':
-                return (b.name || '').localeCompare(a.name || '');
+                return (b?.name || '').localeCompare(a?.name || '');
             case 'count-asc':
-                return (a.count || 0) - (b.count || 0);
+                return (parseInt(a?.count) || 0) - (parseInt(b?.count) || 0);
             case 'count-desc':
-                return (b.count || 0) - (a.count || 0);
+                return (parseInt(b?.count) || 0) - (parseInt(a?.count) || 0);
             default:
                 return 0;
         }
     });
+    
+    console.log(`[Filter] Final filtered count: ${filteredLedgers.length}`);
     
     // Reset to first page
     currentPage = 1;
@@ -500,16 +524,21 @@ function loadLedgerPreferences() {
         if (saved) {
             const prefs = JSON.parse(saved);
             currentSort = prefs.sort || 'name-asc';
-            currentFilter = prefs.filter || 'all';
+            // Always reset filter to 'all' on page load to show all ledgers
+            currentFilter = 'all';
             // Don't restore search term - always start with empty search to show all ledgers
             currentSearch = '';
             itemsPerPage = prefs.itemsPerPage || 20;
             currentPage = 1; // Always start at page 1
             
-            // Apply to UI
-            document.getElementById('sortBy').value = currentSort;
-            document.getElementById('filterCount').value = currentFilter;
-            document.getElementById('ledgerSearch').value = ''; // Clear search input
+            // Apply to UI (only if elements exist)
+            const sortByEl = document.getElementById('sortBy');
+            const filterCountEl = document.getElementById('filterCount');
+            const ledgerSearchEl = document.getElementById('ledgerSearch');
+            
+            if (sortByEl) sortByEl.value = currentSort;
+            if (filterCountEl) filterCountEl.value = 'all'; // Always set to 'all'
+            if (ledgerSearchEl) ledgerSearchEl.value = ''; // Clear search input
         } else {
             // Default values if no preferences saved
             currentSort = 'name-asc';
@@ -518,6 +547,8 @@ function loadLedgerPreferences() {
             itemsPerPage = 20;
             currentPage = 1;
         }
+        
+        console.log(`[Preferences] Loaded: sort=${currentSort}, filter=${currentFilter}, search="${currentSearch}"`);
     } catch (e) {
         console.warn('Could not load preferences:', e);
         // Default values on error

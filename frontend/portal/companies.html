@@ -52,9 +52,47 @@
     <!-- Main Content -->
     <div class="main-content">
         <div class="page active">
-            <h1 class="page-title">Select Company</h1>
+            <!-- Header Section -->
+            <div class="tc-header-row tc-mb-24">
+                <div>
+                    <h1 class="tc-title-xl">Companies</h1>
+                    <p class="tc-text-muted">Select a company to view reports and analytics</p>
+                </div>
+            </div>
+            
+            <!-- Search and Filter Section -->
+            <div class="tc-panel tc-mb-20">
+                <div class="controls-row">
+                    <div class="search-container">
+                        <input type="text" 
+                               id="companySearch" 
+                               class="search-input" 
+                               placeholder="Search companies..."
+                               autocomplete="off">
+                        <span class="search-icon">🔍</span>
+                    </div>
+                    <div class="filter-group">
+                        <select id="sortFilter" class="filter-select">
+                            <option value="name">Sort by Name</option>
+                            <option value="records">Sort by Records</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Company Grid -->
             <div class="company-grid" id="companyGrid">
-                <div class="loading">Loading companies...</div>
+                <div class="tc-loading">
+                    <div class="spinner" style="margin: 20px auto;"></div>
+                    <div class="tc-loading__text">Loading companies...</div>
+                </div>
+            </div>
+            
+            <!-- Empty State -->
+            <div id="emptyState" class="tc-empty-state" style="display: none;">
+                <div class="tc-empty-state__icon">🏢</div>
+                <div class="tc-empty-state__title">No Companies Found</div>
+                <div class="tc-empty-state__text">Please sync companies in TallyConnect app first.</div>
             </div>
         </div>
     </div>
@@ -79,36 +117,8 @@
             window.location.href = 'dashboard.html';
         };
         
-        // Override displayCompanies to use new selectCompany
-        const originalDisplayCompanies = displayCompanies;
-        displayCompanies = function(companies) {
-            const grid = document.getElementById('companyGrid');
-            if (!grid) return;
-            
-            grid.innerHTML = '';
-            
-            console.log(`[Portal] Displaying ${companies.length} companies`);
-            
-            if (companies.length === 0) {
-                grid.innerHTML = '<div class="loading">No companies found.<br><small>Please sync companies in TallyConnect app first.</small></div>';
-                return;
-            }
-            
-            companies.forEach((company, index) => {
-                console.log(`[Portal] Company ${index + 1}: ${company.name} (GUID: ${company.guid.substring(0, 20)}...)`);
-                const card = document.createElement('div');
-                card.className = 'company-card';
-                card.innerHTML = `
-                    <div class="company-name">${company.name}</div>
-                    <div class="company-info">
-                        Records: ${company.total_records || 0}<br>
-                        Status: ${company.status || 'Unknown'}
-                    </div>
-                `;
-                card.onclick = () => selectCompany(company);
-                grid.appendChild(card);
-            });
-        };
+        // Use the new displayCompanies function from companies.js
+        // It already includes search, filter, and modern card design
         
         // Load companies on page load (override app.js window.onload)
         window.addEventListener('load', function() {

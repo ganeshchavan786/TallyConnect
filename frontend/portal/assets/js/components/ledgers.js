@@ -8,13 +8,23 @@
  */
 function displayLedgers(ledgers) {
     // Store all ledgers
-    allLedgers = ledgers || [];
+    allLedgers = Array.isArray(ledgers) ? ledgers : [];
+    
+    console.log(`[Ledgers] Received ${allLedgers.length} ledgers from API`);
+    console.log(`[Ledgers] Sample ledger:`, allLedgers[0]);
+    console.log(`[Ledgers] allLedgers type:`, typeof allLedgers, Array.isArray(allLedgers));
     
     // Load saved preferences
     loadLedgerPreferences();
     
+    // Verify allLedgers is still populated
+    console.log(`[Ledgers] Before applyFiltersAndSort: allLedgers.length = ${allLedgers.length}`);
+    
     // Apply filters and sorting
     applyFiltersAndSort();
+    
+    console.log(`[Ledgers] After filtering: ${filteredLedgers.length} ledgers`);
+    console.log(`[Ledgers] filteredLedgers sample:`, filteredLedgers[0]);
     
     // Update data context
     updateDataContext();

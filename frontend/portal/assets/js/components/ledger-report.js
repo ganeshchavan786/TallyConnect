@@ -87,41 +87,58 @@ function renderLedgerReport(data) {
     `;
     
     data.transactions.forEach(trans => {
-        const dateFormatted = formatDateTally(trans.date);
-        const balanceValue = Math.abs(trans.balance);
+        const isSpecial = trans.isSpecial || false;
+        const dateFormatted = trans.date ? formatDateTally(trans.date) : '';
+        const balanceValue = trans.balance !== null && trans.balance !== undefined ? Math.abs(trans.balance) : null;
         const balanceCssClass = trans.balance > 0 ? 'tc-text-success' : trans.balance < 0 ? 'tc-text-danger' : 'tc-text-primary';
         
         // Tally style: Show only debit OR credit, not both
-        const debitDisplay = trans.debit > 0 ? formatCurrency(trans.debit) : '';
-        const creditDisplay = trans.credit > 0 ? formatCurrency(trans.credit) : '';
+        // For special rows (Current Total), always show even if 0
+        let debitDisplay = '';
+        let creditDisplay = '';
+        
+        if (isSpecial && trans.particulars === 'Current Total') {
+            // Current Total: Always show amounts (even if 0.00)
+            debitDisplay = trans.debit !== null && trans.debit !== undefined ? formatCurrency(trans.debit) : '0.00';
+            creditDisplay = trans.credit !== null && trans.credit !== undefined ? formatCurrency(trans.credit) : '0.00';
+        } else if (isSpecial && trans.particulars === 'Closing Balance') {
+            // Closing Balance: Show 0.00 in Credit if balance is zero (Tally style)
+            if (trans.debit !== null && trans.debit !== undefined && trans.debit > 0) {
+                debitDisplay = formatCurrency(trans.debit);
+            }
+            if (trans.credit !== null && trans.credit !== undefined) {
+                creditDisplay = formatCurrency(trans.credit);  // Shows 0.00 if balance is zero
+            }
+        } else {
+            // Regular transactions: Show only if > 0
+            debitDisplay = trans.debit !== null && trans.debit !== undefined && trans.debit > 0 ? formatCurrency(trans.debit) : '';
+            creditDisplay = trans.credit !== null && trans.credit !== undefined && trans.credit > 0 ? formatCurrency(trans.credit) : '';
+        }
         
         // Use particulars if available, otherwise narration
         const particulars = (trans.particulars || trans.narration || '').substring(0, 60);
         
+        // Special row styling
+        const rowClass = isSpecial ? 'special-row' : '';
+        const rowStyle = isSpecial ? 'background: rgba(15, 23, 42, 0.04); font-weight: 700;' : '';
+        
         html += `
-            <tr>
+            <tr class="${rowClass}" style="${rowStyle}">
                 <td>${dateFormatted}</td>
-                <td>${particulars || '-'}</td>
+                <td><strong>${particulars || '-'}</strong></td>
                 <td>${trans.voucher_type || '-'}</td>
                 <td>${trans.voucher_number || '-'}</td>
-                <td class="tc-right tc-text-success ${trans.debit > 0 ? 'tc-fw-600' : ''}">${debitDisplay}</td>
-                <td class="tc-right tc-text-danger ${trans.credit > 0 ? 'tc-fw-600' : ''}">${creditDisplay}</td>
-                <td class="tc-right tc-fw-600 ${balanceCssClass}">${formatCurrency(balanceValue)}</td>
+                <td class="tc-right tc-text-success ${trans.debit > 0 ? 'tc-fw-600' : ''}">${debitDisplay || '-'}</td>
+                <td class="tc-right tc-text-danger ${trans.credit > 0 ? 'tc-fw-600' : ''}">${creditDisplay || '-'}</td>
+                <td class="tc-right tc-fw-600 ${balanceCssClass}">${balanceValue !== null ? formatCurrency(balanceValue) : '-'}</td>
             </tr>
         `;
     });
     
-    // Add totals row
+    // No separate tfoot needed - Current Total comes from UNION ALL query
     html += `
                     </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="4" class="tc-right"><strong>Current Total:</strong></td>
-                            <td class="tc-right tc-text-success">${formatCurrency(data.total_debit)}</td>
-                            <td class="tc-right tc-text-danger">${formatCurrency(data.total_credit)}</td>
-                            <td class="tc-right tc-text-primary">${formatCurrency(Math.abs(data.closing_balance))}</td>
-                        </tr>
-                    </tfoot>
+                </table>
                 </table>
             </div>
         </div>

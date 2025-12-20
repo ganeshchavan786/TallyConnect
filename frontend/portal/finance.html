@@ -71,6 +71,7 @@
             <!-- Finance Tabs -->
             <div class="tc-tabs" id="financeTabs">
                 <button class="tc-tab tc-tab--active" data-tab="overview">Overview</button>
+                <button class="tc-tab" data-tab="trial-balance">Trial Balance</button>
                 <button class="tc-tab" data-tab="payable">Payable</button>
                 <button class="tc-tab" data-tab="purchase">Purchase</button>
                 <button class="tc-tab" data-tab="status">Status</button>
@@ -198,6 +199,66 @@
                                 <div class="tc-kpi__value" id="payableOpenAmount">-</div>
                                 <div class="tc-kpi__sub">Outstanding</div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trial Balance Tab -->
+                <div class="tc-tab-panel" id="tab-trial-balance">
+                    <div class="tc-section">
+                        <div class="tc-header-row">
+                            <div>
+                                <h3 class="tc-section__title">⚖️ Trial Balance</h3>
+                                <div class="tc-section__hint">Ledger-wise opening balance, period transactions, and closing balance</div>
+                            </div>
+                            <div class="tc-actions">
+                                <button onclick="exportTrialBalance('csv')" class="tc-btn tc-btn--success">📄 CSV</button>
+                                <button onclick="exportTrialBalance('excel')" class="tc-btn tc-btn--primary">📊 Excel</button>
+                                <button onclick="exportTrialBalance('pdf')" class="tc-btn tc-btn--danger">📑 PDF</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Period Filter -->
+                        <div id="trialBalanceFilterContainer" class="tc-filterbar-container" style="margin-bottom: 20px;"></div>
+                        
+                        <!-- Trial Balance Table -->
+                        <div class="tc-table-wrap">
+                            <table class="tc-table" id="trialBalanceTable">
+                                <thead>
+                                    <tr>
+                                        <th class="tc-left">Primary Group</th>
+                                        <th class="tc-left">Sub Group</th>
+                                        <th class="tc-left">Ledger Name</th>
+                                        <th class="tc-right">Opening Dr</th>
+                                        <th class="tc-right">Opening Cr</th>
+                                        <th class="tc-right">Period Dr</th>
+                                        <th class="tc-right">Period Cr</th>
+                                        <th class="tc-right">Closing Dr</th>
+                                        <th class="tc-right">Closing Cr</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="trialBalanceTableBody">
+                                    <tr>
+                                        <td colspan="9" class="tc-center" style="padding: 40px;">
+                                            <div class="tc-loading">
+                                                <div class="spinner" style="margin: 20px auto;"></div>
+                                                <div class="tc-loading__text">Loading trial balance...</div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                                <tfoot id="trialBalanceTableFoot" style="display: none;">
+                                    <tr>
+                                        <td colspan="3" class="tc-fw-900">Total</td>
+                                        <td class="tc-right tc-fw-900" id="totalOpeningDr">0.00</td>
+                                        <td class="tc-right tc-fw-900" id="totalOpeningCr">0.00</td>
+                                        <td class="tc-right tc-fw-900" id="totalPeriodDr">0.00</td>
+                                        <td class="tc-right tc-fw-900" id="totalPeriodCr">0.00</td>
+                                        <td class="tc-right tc-fw-900" id="totalClosingDr">0.00</td>
+                                        <td class="tc-right tc-fw-900" id="totalClosingCr">0.00</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -368,12 +429,12 @@
     
     <!-- JavaScript Files -->
     <script src="assets/js/utils/helpers.js"></script>
+    <script src="assets/js/utils/date-filters.js"></script>
+    <script src="assets/js/utils/export.js"></script>
     <script src="assets/js/api.js"></script>
+    <script src="assets/js/app.js"></script>
     <script>
-        // Global state
-        let selectedCompany = null;
-
-        // Additional check - redirect if no company
+        // Additional check - redirect if no company (before page loads)
         (function() {
             try {
                 const savedCompany = sessionStorage.getItem('selectedCompany');
@@ -385,7 +446,6 @@
             }
         })();
     </script>
-    <script src="assets/js/app.js"></script>
     <script>
         // Load company from sessionStorage and initialize page
         window.addEventListener('load', function() {
@@ -423,11 +483,15 @@
             const tabs = document.getElementById('financeTabs');
             const panels = {
                 overview: document.getElementById('tab-overview'),
+                'trial-balance': document.getElementById('tab-trial-balance'),
                 payable: document.getElementById('tab-payable'),
                 purchase: document.getElementById('tab-purchase'),
                 status: document.getElementById('tab-status'),
                 vendor: document.getElementById('tab-vendor'),
             };
+
+            // Trial Balance date filter manager
+            let trialBalanceDateFilter = null;
 
             function setActiveTab(tabKey) {
                 if (tabs) {
@@ -437,6 +501,14 @@
                 }
                 Object.values(panels).forEach(p => p && p.classList.remove('tc-tab-panel--active'));
                 if (panels[tabKey]) panels[tabKey].classList.add('tc-tab-panel--active');
+                
+                // Load Trial Balance data when tab is activated
+                if (tabKey === 'trial-balance') {
+                    if (!trialBalanceDateFilter) {
+                        initializeTrialBalanceFilters();
+                    }
+                    loadTrialBalance();
+                }
             }
 
             if (tabs) {
@@ -447,6 +519,245 @@
                     if (!tabKey) return;
                     setActiveTab(tabKey);
                 });
+            }
+
+            // Initialize Trial Balance date filters
+            function initializeTrialBalanceFilters() {
+                const container = document.getElementById('trialBalanceFilterContainer');
+                if (!container) return;
+                
+                // Get default financial year from company name if available
+                let defaultFYStartYear = null;
+                try {
+                    const name = (selectedCompany && selectedCompany.name) ? String(selectedCompany.name) : '';
+                    const m = name.match(/F\.?Y\.?\s*(\d{2})\s*-\s*(\d{2})/i);
+                    if (m) {
+                        const yy = parseInt(m[1], 10);
+                        defaultFYStartYear = 2000 + yy;
+                    }
+                } catch (e) {
+                    defaultFYStartYear = null;
+                }
+                
+                trialBalanceDateFilter = new DateFilterManager({
+                    containerId: 'trialBalanceFilterContainer',
+                    defaultDateRange: 'current_financial_year',
+                    defaultYear: defaultFYStartYear,
+                    layout: 'bar',
+                    onFilterChange: function(filterParams) {
+                        loadTrialBalance();
+                    }
+                });
+                
+                trialBalanceDateFilter.render();
+            }
+
+            // Load Trial Balance data
+            function loadTrialBalance() {
+                if (!selectedCompany) return;
+                
+                // Initialize filter if not already done
+                if (!trialBalanceDateFilter) {
+                    initializeTrialBalanceFilters();
+                    // Wait a bit for filter to initialize, then load
+                    setTimeout(() => loadTrialBalance(), 100);
+                    return;
+                }
+                
+                const tbody = document.getElementById('trialBalanceTableBody');
+                if (!tbody) return;
+                
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="tc-center" style="padding: 40px;">
+                            <div class="tc-loading">
+                                <div class="spinner" style="margin: 20px auto;"></div>
+                                <div class="tc-loading__text">Loading trial balance...</div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                
+                const filterParams = trialBalanceDateFilter.getFilterParams();
+                const fromDate = filterParams.start_date || filterParams.from_date;
+                const toDate = filterParams.end_date || filterParams.to_date;
+                
+                if (!fromDate || !toDate) {
+                    console.error('Date parameters missing:', filterParams);
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="tc-center" style="padding: 40px;">
+                                <div class="tc-title-lg" style="margin-bottom: 8px;">Error loading trial balance</div>
+                                <div class="tc-subtitle">Date parameters are missing. Please select a period.</div>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                const safeGuid = selectedCompany.guid.replace(/-/g, '_').replace(/\./g, '_');
+                const safeAlterid = String(selectedCompany.alterid).replace(/\./g, '_');
+                const apiUrl = `api/trial-balance-data/${safeGuid}_${safeAlterid}?from_date=${encodeURIComponent(fromDate)}&to_date=${encodeURIComponent(toDate)}`;
+                
+                fetch(apiUrl)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        renderTrialBalance(data);
+                    })
+                    .catch(error => {
+                        console.error('Error loading trial balance:', error);
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="9" class="tc-center" style="padding: 40px;">
+                                    <div class="tc-title-lg" style="margin-bottom: 8px;">Error loading trial balance</div>
+                                    <div class="tc-subtitle">${error.message}</div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+            }
+
+            // Render Trial Balance table
+            function renderTrialBalance(data) {
+                const tbody = document.getElementById('trialBalanceTableBody');
+                const tfoot = document.getElementById('trialBalanceTableFoot');
+                
+                if (!tbody) return;
+                
+                if (!data.trial_balance || data.trial_balance.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="9" class="tc-center" style="padding: 60px;">
+                                <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;">⚖️</div>
+                                <div class="tc-title-lg" style="margin-bottom: 8px;">No Trial Balance Data</div>
+                                <div class="tc-subtitle">No ledger transactions found for the selected period.</div>
+                            </td>
+                        </tr>
+                    `;
+                    tfoot.style.display = 'none';
+                    return;
+                }
+                
+                tbody.innerHTML = '';
+                let totalOpeningDr = 0, totalOpeningCr = 0;
+                let totalPeriodDr = 0, totalPeriodCr = 0;
+                let totalClosingDr = 0, totalClosingCr = 0;
+                let currentPrimaryGroup = '';
+                let currentSubGroup = '';
+                
+                data.trial_balance.forEach((row, index) => {
+                    const openingDr = parseFloat(row.opening_debit || 0);
+                    const openingCr = parseFloat(row.opening_credit || 0);
+                    const periodDr = parseFloat(row.period_debit || 0);
+                    const periodCr = parseFloat(row.period_credit || 0);
+                    const closingDr = parseFloat(row.closing_debit || 0);
+                    const closingCr = parseFloat(row.closing_credit || 0);
+                    
+                    totalOpeningDr += openingDr;
+                    totalOpeningCr += openingCr;
+                    totalPeriodDr += periodDr;
+                    totalPeriodCr += periodCr;
+                    totalClosingDr += closingDr;
+                    totalClosingCr += closingCr;
+                    
+                    // Show primary group only when it changes
+                    const showPrimaryGroup = row.primary_group !== currentPrimaryGroup;
+                    const showSubGroup = row.sub_group !== currentSubGroup || showPrimaryGroup;
+                    
+                    if (showPrimaryGroup) currentPrimaryGroup = row.primary_group || '';
+                    if (showSubGroup) currentSubGroup = row.sub_group || '';
+                    
+                    const tr = document.createElement('tr');
+                    tr.style.animationDelay = `${index * 20}ms`;
+                    tr.innerHTML = `
+                        <td class="${showPrimaryGroup ? 'tc-fw-700' : 'tc-muted'}" style="${showPrimaryGroup ? 'padding-top: 12px;' : ''}">
+                            ${showPrimaryGroup ? (row.primary_group || '-') : ''}
+                        </td>
+                        <td class="${showSubGroup ? 'tc-fw-600' : 'tc-muted'}" style="${showSubGroup ? 'padding-top: 8px;' : ''}">
+                            ${showSubGroup ? (row.sub_group || '-') : ''}
+                        </td>
+                        <td class="tc-fw-600">${row.ledger_name || '-'}</td>
+                        <td class="tc-right">${openingDr > 0 ? formatCurrency(openingDr) : '-'}</td>
+                        <td class="tc-right">${openingCr > 0 ? formatCurrency(openingCr) : '-'}</td>
+                        <td class="tc-right">${periodDr > 0 ? formatCurrency(periodDr) : '-'}</td>
+                        <td class="tc-right">${periodCr > 0 ? formatCurrency(periodCr) : '-'}</td>
+                        <td class="tc-right">${closingDr > 0 ? formatCurrency(closingDr) : '-'}</td>
+                        <td class="tc-right">${closingCr > 0 ? formatCurrency(closingCr) : '-'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                
+                // Update totals
+                document.getElementById('totalOpeningDr').textContent = formatCurrency(totalOpeningDr);
+                document.getElementById('totalOpeningCr').textContent = formatCurrency(totalOpeningCr);
+                document.getElementById('totalPeriodDr').textContent = formatCurrency(totalPeriodDr);
+                document.getElementById('totalPeriodCr').textContent = formatCurrency(totalPeriodCr);
+                document.getElementById('totalClosingDr').textContent = formatCurrency(totalClosingDr);
+                document.getElementById('totalClosingCr').textContent = formatCurrency(totalClosingCr);
+                
+                tfoot.style.display = 'table-footer-group';
+                
+                // Store data for export
+                window.trialBalanceData = data;
+            }
+
+            // Export Trial Balance
+            function exportTrialBalance(format) {
+                if (!window.trialBalanceData) {
+                    alert('No trial balance data to export. Please load the report first.');
+                    return;
+                }
+                
+                const data = window.trialBalanceData;
+                const companyName = data.company_name || 'Company';
+                const fromDate = data.from_date || '';
+                const toDate = data.to_date || '';
+                
+                // Prepare export data
+                const exportData = [];
+                exportData.push(['Primary Group', 'Sub Group', 'Ledger Name', 'Opening Dr', 'Opening Cr', 'Period Dr', 'Period Cr', 'Closing Dr', 'Closing Cr']);
+                
+                if (data.trial_balance && data.trial_balance.length > 0) {
+                    data.trial_balance.forEach(row => {
+                        exportData.push([
+                            row.primary_group || '',
+                            row.sub_group || '',
+                            row.ledger_name || '',
+                            parseFloat(row.opening_debit || 0),
+                            parseFloat(row.opening_credit || 0),
+                            parseFloat(row.period_debit || 0),
+                            parseFloat(row.period_credit || 0),
+                            parseFloat(row.closing_debit || 0),
+                            parseFloat(row.closing_credit || 0)
+                        ]);
+                    });
+                    
+                    // Add totals row
+                    exportData.push([
+                        'TOTAL',
+                        data.totals.opening_debit || 0,
+                        data.totals.opening_credit || 0,
+                        data.totals.period_debit || 0,
+                        data.totals.period_credit || 0,
+                        data.totals.closing_debit || 0,
+                        data.totals.closing_credit || 0
+                    ]);
+                }
+                
+                const fileName = `Trial_Balance_${companyName.replace(/[^a-zA-Z0-9]/g, '_')}_${fromDate}_to_${toDate}`;
+                
+                if (format === 'csv') {
+                    exportToCSV(exportData, fileName);
+                } else if (format === 'excel') {
+                    exportToExcel(exportData, fileName, 'Trial Balance');
+                } else if (format === 'pdf') {
+                    exportToPDF(exportData, fileName, `Trial Balance - ${companyName}`, `Period: ${fromDate} to ${toDate}`);
+                }
             }
 
             // Initialize with Overview tab
