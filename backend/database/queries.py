@@ -138,6 +138,136 @@ class ReportQueries:
         ORDER BY lv.vch_date, lv.vch_no
     """
     
+    # Ledger Report - Tally Style with UNION ALL (4 sections)
+    # Section 1: Opening Balance, Section 2: Transactions, Section 3: Current Total, Section 4: Closing Balance
+    # Ledger Report - Tally Style (All Ledger Lines, Not Grouped)
+    # ============================================================
+    # This query generates a Tally-style ledger report showing:
+    # 1. Opening Balance (before from_date)
+    # 2. All individual ledger lines (not grouped by voucher)
+    # 3. Current Total (sum of period transactions)
+    # 4. Closing Balance (up to to_date)
+    #
+    # Key Features:
+    # - Shows ALL ledger lines (no GROUP BY) - each row is a separate ledger entry
+    # - Particulars: Counter ledger from same voucher, or party name, or narration
+    # - Only matches on led_name (not vch_party_name) to avoid duplicates
+    # - Direct values (no MAX/SUM aggregation for transactions)
+    # - Tally-style: Shows only Debit OR Credit per row (not both)
+    #
+    # Parameters (18 total):
+    # - Opening: guid, alterid, ledger_name, from_date (4 params)
+    # - Transactions: guid, alterid, ledger_name, from_date, to_date (5 params)
+    # - Current Total: guid, alterid, ledger_name, from_date, to_date (5 params)
+    # - Closing: guid, alterid, ledger_name, to_date (4 params)
+    LEDGER_REPORT_TALLY_STYLE = """
+        SELECT
+            "Date",
+            "Particulars",
+            "Vch Type",
+            "Vch No",
+            "Debit",
+            "Credit",
+            sort_key
+        FROM (
+            -- Section 1: Opening Balance (before from_date)
+            SELECT
+                0 AS sort_key,
+                NULL AS "Date",
+                'Opening Balance' AS "Particulars",
+                NULL AS "Vch Type",
+                NULL AS "Vch No",
+                CASE
+                    WHEN SUM(COALESCE(vch_dr_amt,0)) - SUM(COALESCE(vch_cr_amt,0)) > 0
+                    THEN ABS(SUM(COALESCE(vch_dr_amt,0)) - SUM(COALESCE(vch_cr_amt,0)))
+                    ELSE NULL
+                END AS "Debit",
+                CASE
+                    WHEN SUM(COALESCE(vch_dr_amt,0)) - SUM(COALESCE(vch_cr_amt,0)) < 0
+                    THEN ABS(SUM(COALESCE(vch_dr_amt,0)) - SUM(COALESCE(vch_cr_amt,0)))
+                    ELSE NULL
+                END AS "Credit"
+            FROM vouchers
+            WHERE company_guid = ? 
+                AND company_alterid = ?
+                AND TRIM(UPPER(led_name)) = TRIM(UPPER(?))
+                AND DATE(vch_date) < DATE(?)
+            
+            UNION ALL
+            
+            -- Section 2: Period Transactions (all individual ledger lines)
+            SELECT
+                1 AS sort_key,
+                v.vch_date AS "Date",
+                -- Particulars: Counter ledger from same voucher, or party name, or narration
+                COALESCE(
+                    (SELECT v2.led_name 
+                     FROM vouchers v2 
+                     WHERE v2.vch_mst_id = v.vch_mst_id 
+                       AND v2.led_name != v.led_name
+                     ORDER BY v2.id LIMIT 1),
+                    v.vch_party_name,
+                    v.vch_narration,
+                    v.led_name
+                ) AS "Particulars",
+                v.vch_type AS "Vch Type",
+                v.vch_no AS "Vch No",
+                -- Tally style: Show only if > 0
+                CASE WHEN COALESCE(v.vch_dr_amt,0) > 0 THEN v.vch_dr_amt ELSE NULL END AS "Debit",
+                CASE WHEN COALESCE(v.vch_cr_amt,0) > 0 THEN v.vch_cr_amt ELSE NULL END AS "Credit"
+            FROM vouchers v
+            WHERE v.company_guid = ? 
+                AND v.company_alterid = ?
+                AND TRIM(UPPER(v.led_name)) = TRIM(UPPER(?))
+                AND DATE(v.vch_date) BETWEEN DATE(?) AND DATE(?)
+            
+            UNION ALL
+            
+            -- Section 3: Current Total (sum of period transactions)
+            SELECT
+                2 AS sort_key,
+                NULL AS "Date",
+                'Current Total' AS "Particulars",
+                NULL AS "Vch Type",
+                NULL AS "Vch No",
+                SUM(COALESCE(vch_dr_amt,0)) AS "Debit",
+                SUM(COALESCE(vch_cr_amt,0)) AS "Credit"
+            FROM vouchers
+            WHERE company_guid = ? 
+                AND company_alterid = ?
+                AND TRIM(UPPER(led_name)) = TRIM(UPPER(?))
+                AND DATE(vch_date) BETWEEN DATE(?) AND DATE(?)
+            
+            UNION ALL
+            
+            -- Section 4: Closing Balance (up to to_date)
+            SELECT
+                3 AS sort_key,
+                NULL AS "Date",
+                'Closing Balance' AS "Particulars",
+                NULL AS "Vch Type",
+                NULL AS "Vch No",
+                CASE
+                    WHEN SUM(COALESCE(vch_dr_amt,0)) - SUM(COALESCE(vch_cr_amt,0)) > 0
+                    THEN ABS(SUM(COALESCE(vch_dr_amt,0)) - SUM(COALESCE(vch_cr_amt,0)))
+                    ELSE 0
+                END AS "Debit",
+                CASE
+                    WHEN SUM(COALESCE(vch_dr_amt,0)) - SUM(COALESCE(vch_cr_amt,0)) < 0
+                    THEN ABS(SUM(COALESCE(vch_dr_amt,0)) - SUM(COALESCE(vch_cr_amt,0)))
+                    WHEN SUM(COALESCE(vch_dr_amt,0)) - SUM(COALESCE(vch_cr_amt,0)) = 0
+                    THEN 0
+                    ELSE NULL
+                END AS "Credit"
+            FROM vouchers
+            WHERE company_guid = ? 
+                AND company_alterid = ?
+                AND TRIM(UPPER(led_name)) = TRIM(UPPER(?))
+                AND DATE(vch_date) <= DATE(?)
+        )
+        ORDER BY sort_key, DATE("Date"), "Vch Type", "Vch No"
+    """
+    
     # Dashboard - Summary statistics
     DASHBOARD_STATS = """
         SELECT 
@@ -509,5 +639,130 @@ class ReportQueries:
             )
         GROUP BY voucher_key
         ORDER BY MAX(vch_date), MAX(vch_no)
+    """
+    
+    # Trial Balance - Ledger-wise summary with opening and closing balances
+    # Grouped by Primary Group, Sub Group (Parent), and Ledger Name
+    # Shows: Opening Balance (Dr/Cr), Period Debit, Period Credit, Closing Balance (Dr/Cr)
+    TRIAL_BALANCE = """
+        WITH ledger_opening AS (
+            -- Opening balance (all transactions before from_date)
+            SELECT 
+                led_name,
+                COALESCE(vch_led_primary_grp, '') as primary_group,
+                COALESCE(vch_led_parent, '') as sub_group,
+                SUM(CASE WHEN vch_dr_cr = 'Dr' THEN COALESCE(vch_dr_amt, 0) ELSE 0 END) as opening_debit,
+                SUM(CASE WHEN vch_dr_cr = 'Cr' THEN COALESCE(vch_cr_amt, 0) ELSE 0 END) as opening_credit
+            FROM vouchers
+            WHERE company_guid = ?
+                AND company_alterid = ?
+                AND led_name IS NOT NULL
+                AND led_name != ''
+                AND vch_date < ?
+                AND COALESCE(vch_led_primary_grp, '') IN (
+                    'Capital Account',
+                    'Loans (Liability)',
+                    'Current Liabilities',
+                    'Fixed Assets',
+                    'Investments',
+                    'Current Assets',
+                    'Suspense A/c',
+                    'Sales Accounts',
+                    'Indirect Expenses',
+                    'Profit & Loss A/c'
+                )
+            GROUP BY led_name, primary_group, sub_group
+        ),
+        ledger_period AS (
+            -- Period transactions (between from_date and to_date)
+            SELECT 
+                led_name,
+                COALESCE(vch_led_primary_grp, '') as primary_group,
+                COALESCE(vch_led_parent, '') as sub_group,
+                SUM(CASE WHEN vch_dr_cr = 'Dr' THEN COALESCE(vch_dr_amt, 0) ELSE 0 END) as period_debit,
+                SUM(CASE WHEN vch_dr_cr = 'Cr' THEN COALESCE(vch_cr_amt, 0) ELSE 0 END) as period_credit
+            FROM vouchers
+            WHERE company_guid = ?
+                AND company_alterid = ?
+                AND led_name IS NOT NULL
+                AND led_name != ''
+                AND vch_date BETWEEN ? AND ?
+                AND COALESCE(vch_led_primary_grp, '') IN (
+                    'Capital Account',
+                    'Loans (Liability)',
+                    'Current Liabilities',
+                    'Fixed Assets',
+                    'Investments',
+                    'Current Assets',
+                    'Suspense A/c',
+                    'Sales Accounts',
+                    'Indirect Expenses',
+                    'Profit & Loss A/c'
+                )
+            GROUP BY led_name, primary_group, sub_group
+        ),
+        ledger_all AS (
+            -- All unique ledgers with their groups
+            SELECT DISTINCT
+                led_name,
+                COALESCE(vch_led_primary_grp, '') as primary_group,
+                COALESCE(vch_led_parent, '') as sub_group
+            FROM vouchers
+            WHERE company_guid = ?
+                AND company_alterid = ?
+                AND led_name IS NOT NULL
+                AND led_name != ''
+                AND COALESCE(vch_led_primary_grp, '') IN (
+                    'Capital Account',
+                    'Loans (Liability)',
+                    'Current Liabilities',
+                    'Fixed Assets',
+                    'Investments',
+                    'Current Assets',
+                    'Suspense A/c',
+                    'Sales Accounts',
+                    'Indirect Expenses',
+                    'Profit & Loss A/c'
+                )
+        )
+        SELECT 
+            la.primary_group,
+            la.sub_group,
+            la.led_name as ledger_name,
+            COALESCE(lo.opening_debit, 0) as opening_debit,
+            COALESCE(lo.opening_credit, 0) as opening_credit,
+            (COALESCE(lo.opening_debit, 0) - COALESCE(lo.opening_credit, 0)) as opening_balance,
+            CASE 
+                WHEN (COALESCE(lo.opening_debit, 0) - COALESCE(lo.opening_credit, 0)) >= 0 THEN 'Dr'
+                ELSE 'Cr'
+            END as opening_balance_type,
+            COALESCE(lp.period_debit, 0) as period_debit,
+            COALESCE(lp.period_credit, 0) as period_credit,
+            (COALESCE(lo.opening_debit, 0) + COALESCE(lp.period_debit, 0)) as closing_debit,
+            (COALESCE(lo.opening_credit, 0) + COALESCE(lp.period_credit, 0)) as closing_credit,
+            ((COALESCE(lo.opening_debit, 0) + COALESCE(lp.period_debit, 0)) - 
+             (COALESCE(lo.opening_credit, 0) + COALESCE(lp.period_credit, 0))) as closing_balance,
+            CASE 
+                WHEN ((COALESCE(lo.opening_debit, 0) + COALESCE(lp.period_debit, 0)) - 
+                      (COALESCE(lo.opening_credit, 0) + COALESCE(lp.period_credit, 0))) >= 0 THEN 'Dr'
+                ELSE 'Cr'
+            END as closing_balance_type
+        FROM ledger_all la
+        LEFT JOIN ledger_opening lo ON la.led_name = lo.led_name 
+            AND la.primary_group = lo.primary_group 
+            AND la.sub_group = lo.sub_group
+        LEFT JOIN ledger_period lp ON la.led_name = lp.led_name 
+            AND la.primary_group = lp.primary_group 
+            AND la.sub_group = lp.sub_group
+        WHERE (
+            COALESCE(lo.opening_debit, 0) != 0 
+            OR COALESCE(lo.opening_credit, 0) != 0
+            OR COALESCE(lp.period_debit, 0) != 0
+            OR COALESCE(lp.period_credit, 0) != 0
+        )
+        ORDER BY 
+            la.primary_group,
+            la.sub_group,
+            la.led_name
     """
 

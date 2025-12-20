@@ -242,6 +242,9 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             elif path.startswith('/api/sales-register-data/'):
                 self.send_sales_register_data(path, parsed)
             
+            elif path.startswith('/api/trial-balance-data/'):
+                self.send_trial_balance_data(path, parsed)
+            
             elif path.startswith('/api/sync-logs/'):
                 self.send_sync_logs(path, parsed)
 
@@ -611,30 +614,141 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             from_date_sql = datetime.strptime(from_date, "%d-%m-%Y").strftime("%Y-%m-%d")
             to_date_sql = datetime.strptime(to_date, "%d-%m-%Y").strftime("%Y-%m-%d")
             
-            # Query transactions using WORKING LOGIC from demo project
-            # Uses vch_mst_id to identify unique vouchers (Tally-style)
+            # Use Tally-style UNION ALL query (4 sections: Opening, Transactions, Current Total, Closing)
             from backend.database.queries import ReportQueries
             
-            # Debug: Print query parameters
-            print(f"[DEBUG] Query params: guid={guid}, alterid={alterid}, ledger={ledger_name}, from={from_date_sql}, to={to_date_sql}")
+            # Execute Tally-style ledger report query
+            # Query returns: Opening Balance, All Transaction Lines, Current Total, Closing Balance
+            # Parameters (18 total): 4 + 5 + 5 + 4
+            try:
+                cursor.execute(ReportQueries.LEDGER_REPORT_TALLY_STYLE, (
+                    # Section 1: Opening Balance (4 params)
+                    guid, alterid, ledger_name, from_date_sql,
+                    # Section 2: Period Transactions (5 params)
+                    guid, alterid, ledger_name, from_date_sql, to_date_sql,
+                    # Section 3: Current Total (5 params)
+                    guid, alterid, ledger_name, from_date_sql, to_date_sql,
+                    # Section 4: Closing Balance (4 params)
+                    guid, alterid, ledger_name, to_date_sql
+                ))
+                
+                rows = cursor.fetchall()
+                print(f"[DEBUG] Found {len(rows)} rows from UNION ALL query")
+                
+                # Check column names
+                if rows:
+                    print(f"[DEBUG] Column names: {list(rows[0].keys())}")
+            except Exception as query_error:
+                print(f"[ERROR] Query execution failed: {query_error}")
+                import traceback
+                traceback.print_exc()
+                conn.close()
+                self.send_error(500, f"Error executing query: {str(query_error)}")
+                return
             
-            # STEP 1: Get unique voucher IDs for selected ledger
-            cursor.execute(ReportQueries.LEDGER_VOUCHER_IDS,
-                         (guid, alterid, ledger_name, ledger_name, from_date_sql, to_date_sql))
-            unique_voucher_ids = [row['vch_mst_id'] for row in cursor.fetchall()]
+            # Debug: Print first few rows
+            for i, row in enumerate(rows[:5]):
+                try:
+                    sort_key = row['sort_key']
+                    date_val = row['Date']
+                    particulars_val = row['Particulars']
+                    debit_val = row['Debit']
+                    credit_val = row['Credit']
+                    is_special_val = row['is_special']
+                    print(f"[DEBUG] Row {i}: sort_key={sort_key}, Date={date_val}, Particulars={particulars_val}, Debit={debit_val}, Credit={credit_val}, is_special={is_special_val}")
+                except (KeyError, IndexError) as e:
+                    print(f"[DEBUG] Error accessing row {i} column: {e}")
+                except Exception as e:
+                    print(f"[DEBUG] Error printing row {i}: {e}")
             
-            print(f"[DEBUG] Found {len(unique_voucher_ids)} unique vouchers for ledger: {ledger_name}")
-            
-            # Calculate balances
-            opening_balance = 0
-            running_balance = opening_balance
+            # Convert rows to list of dictionaries - EXACT reference file logic
+            transaction_list = []
             total_debit = 0
             total_credit = 0
             
-            transaction_list = []
+            for row in rows:
+                particulars = row['Particulars'] or ''
+                debit_val = row['Debit']
+                credit_val = row['Credit']
+                
+                # Calculate totals for Current Total row
+                if particulars == 'Current Total':
+                    total_debit = debit_val if debit_val is not None else 0
+                    total_credit = credit_val if credit_val is not None else 0
+                
+                # For closing balance, show 0.00 if balance is zero
+                if particulars == 'Closing Balance':
+                    if debit_val == 0 and credit_val == 0:
+                        credit_val = 0
+                    elif debit_val == 0 and credit_val is None:
+                        credit_val = 0
+                
+                transaction_list.append({
+                    "date": row['Date'],
+                    "particulars": particulars,
+                    "vchType": row['Vch Type'],
+                    "vchNo": row['Vch No'],
+                    "debit": debit_val,
+                    "credit": credit_val,
+                    "isSpecial": particulars in ['Opening Balance', 'Current Total', 'Closing Balance']
+                })
             
+            # Calculate opening and closing balances - EXACT reference file logic
+            opening_debit = None
+            opening_credit = None
+            closing_debit = None
+            closing_credit = None
+            
+            for row in rows:
+                if row['Particulars'] == 'Opening Balance':
+                    opening_debit = row['Debit']
+                    opening_credit = row['Credit']
+                elif row['Particulars'] == 'Closing Balance':
+                    closing_debit = row['Debit']
+                    closing_credit = row['Credit']
+            
+            opening_balance = (opening_debit if opening_debit else 0) - (opening_credit if opening_credit else 0)
+            closing_balance = (closing_debit if closing_debit else 0) - (closing_credit if closing_credit else 0)
+            
+            # If opening balance not found in query, calculate it
+            if opening_balance == 0:
+                cursor.execute("""
+                    SELECT 
+                        SUM(COALESCE(vch_dr_amt, 0)) as total_debit,
+                        SUM(COALESCE(vch_cr_amt, 0)) as total_credit
+                    FROM vouchers
+                    WHERE company_guid = ? 
+                        AND company_alterid = ?
+                        AND (TRIM(UPPER(led_name)) = TRIM(UPPER(?)) OR TRIM(UPPER(vch_party_name)) = TRIM(UPPER(?)))
+                        AND DATE(vch_date) < DATE(?)
+                """, (guid, alterid, ledger_name, ledger_name, from_date_sql))
+                opening_row = cursor.fetchone()
+                if opening_row:
+                    opening_debit = float(opening_row['total_debit'] or 0)
+                    opening_credit = float(opening_row['total_credit'] or 0)
+                    opening_balance = opening_debit - opening_credit
+            
+            # If closing balance not found in query, calculate it
+            if closing_balance == 0:
+                cursor.execute("""
+                    SELECT 
+                        SUM(COALESCE(vch_dr_amt, 0)) as total_debit,
+                        SUM(COALESCE(vch_cr_amt, 0)) as total_credit
+                    FROM vouchers
+                    WHERE company_guid = ? 
+                        AND company_alterid = ?
+                        AND (TRIM(UPPER(led_name)) = TRIM(UPPER(?)) OR TRIM(UPPER(vch_party_name)) = TRIM(UPPER(?)))
+                        AND DATE(vch_date) <= DATE(?)
+                """, (guid, alterid, ledger_name, ledger_name, to_date_sql))
+                closing_row = cursor.fetchone()
+                if closing_row:
+                    closing_debit = float(closing_row['total_debit'] or 0)
+                    closing_credit = float(closing_row['total_credit'] or 0)
+                    closing_balance = closing_debit - closing_credit
+            
+            # Legacy code removed - replaced with UNION ALL query above
             # STEP 2: Process each unique voucher
-            for vch_mst_id in unique_voucher_ids:
+            for vch_mst_id in []:  # Disabled - using UNION ALL query instead
                 # Get all lines for this voucher
                 cursor.execute(ReportQueries.LEDGER_VOUCHER_LINES, (vch_mst_id,))
                 lines = cursor.fetchall()
@@ -714,24 +828,51 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
                             'balance': running_balance
                         })
             
-            print(f"[DEBUG] Processed {len(transaction_list)} transaction rows")
+            print(f"✅ Returning {len(transaction_list)} rows for {ledger_name}")
+            print(f"📊 Sample data (first 3 rows):")
+            for i, d in enumerate(transaction_list[:3]):
+                print(f"   Row {i}: {d}")
             
-            closing_balance = running_balance
-            net_movement = total_debit - total_credit
+            # Prepare response - Match frontend expectations
+            # Frontend expects: transactions array, voucher_type, voucher_number, balance
+            # Convert field names to match frontend
+            transactions_for_frontend = []
+            running_balance = opening_balance
             
-            # Prepare response
+            for trans in transaction_list:
+                # Calculate running balance for non-special rows
+                if not trans.get('isSpecial', False):
+                    if trans.get('debit'):
+                        running_balance += trans['debit']
+                    if trans.get('credit'):
+                        running_balance -= trans['credit']
+                
+                transactions_for_frontend.append({
+                    "date": trans.get("date"),
+                    "particulars": trans.get("particulars", ""),
+                    "voucher_type": trans.get("vchType", ""),
+                    "voucher_number": trans.get("vchNo", ""),
+                    "debit": trans.get("debit"),
+                    "credit": trans.get("credit"),
+                    "balance": running_balance if not trans.get('isSpecial', False) else None,
+                    "isSpecial": trans.get("isSpecial", False),
+                    "narration": ""  # Add if needed
+                })
+            
+            # Count actual transactions (excluding special rows)
+            transaction_count = len([t for t in transactions_for_frontend if not t.get('isSpecial', False)])
+            
             response_data = {
-                'company_name': company_name,
-                'ledger_name': ledger_name,
-                'from_date': from_date,
-                'to_date': to_date,
-                'opening_balance': opening_balance,
-                'closing_balance': closing_balance,
-                'total_debit': total_debit,
-                'total_credit': total_credit,
-                'net_movement': net_movement,
-                'total_transactions': len(unique_voucher_ids),  # Number of unique vouchers
-                'transactions': transaction_list
+                "ledger_name": ledger_name,
+                "company_name": company_name,
+                "from_date": from_date,
+                "to_date": to_date,
+                "opening_balance": opening_balance,
+                "total_debit": total_debit,
+                "total_credit": total_credit,
+                "closing_balance": closing_balance,
+                "total_transactions": transaction_count,
+                "transactions": transactions_for_frontend
             }
             
             conn.close()
@@ -1489,6 +1630,143 @@ class PortalHandler(http.server.SimpleHTTPRequestHandler):
             import traceback
             traceback.print_exc()
             self.send_error(500, f"Error fetching sales register data: {str(e)}")
+    
+    def send_trial_balance_data(self, path, parsed):
+        """Send Trial Balance data as JSON."""
+        try:
+            # Extract guid and alterid from path
+            # Format: /api/trial-balance-data/{guid}_{alterid}?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD
+            filename = path.replace('/api/trial-balance-data/', '').split('?')[0]
+            guid_parts = filename.split('_')
+            
+            if len(guid_parts) < 7:
+                print(f"[ERROR] Trial Balance: Invalid guid/alterid format. Parts: {len(guid_parts)}, Filename: {filename}, Path: {path}")
+                self.send_error(400, f"Invalid trial balance data request: guid/alterid format error")
+                return
+            
+            guid = '-'.join(guid_parts[0:5])  # GUID has 5 parts
+            # AlterID may have underscores (e.g., 102209.0 becomes 102209_0)
+            # Join all remaining parts with '.' to reconstruct original alterid
+            if len(guid_parts) > 5:
+                alterid = '.'.join(guid_parts[5:])  # Reconstruct alterid
+            else:
+                alterid = ''
+            
+            print(f"[DEBUG] Trial Balance: guid={guid}, alterid={alterid}, path={path}, filename={filename}")
+            
+            # Parse query parameters
+            query_params = {}
+            if parsed.query:
+                query_params = {k: v[0] if isinstance(v, list) and len(v) > 0 else v 
+                               for k, v in parse_qs(parsed.query).items()}
+            
+            from_date = query_params.get('from_date', '')
+            to_date = query_params.get('to_date', '')
+            
+            print(f"[DEBUG] Trial Balance: from_date={from_date}, to_date={to_date}, query_params={query_params}")
+            
+            if not from_date or not to_date:
+                print(f"[ERROR] Trial Balance: Missing date parameters. from_date={from_date}, to_date={to_date}")
+                self.send_error(400, f"from_date and to_date are required. Got from_date={from_date}, to_date={to_date}")
+                return
+            
+            # Connect to database
+            db_path = os.path.join(get_base_dir(), "TallyConnectDb.db")
+            if not os.path.exists(db_path):
+                self.send_error(500, "Database not found")
+                return
+            
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # Get company name
+            cursor.execute(ReportQueries.COMPANY_INFO, (guid, alterid))
+            company = cursor.fetchone()
+            if not company:
+                conn.close()
+                self.send_error(404, "Company not found")
+                return
+            
+            company_name = company['name']
+            
+            # Execute Trial Balance query
+            # Parameters: guid, alterid, from_date (for opening), guid, alterid, from_date, to_date (for period), guid, alterid (for all ledgers)
+            cursor.execute(ReportQueries.TRIAL_BALANCE, (
+                guid, alterid, from_date,  # Opening balance (before from_date)
+                guid, alterid, from_date, to_date,  # Period transactions
+                guid, alterid  # All ledgers
+            ))
+            
+            trial_balance_rows = cursor.fetchall()
+            
+            # Convert to list of dictionaries
+            trial_balance_data = []
+            total_opening_debit = 0
+            total_opening_credit = 0
+            total_period_debit = 0
+            total_period_credit = 0
+            total_closing_debit = 0
+            total_closing_credit = 0
+            
+            for row in trial_balance_rows:
+                opening_balance = float(row['opening_balance'] or 0)
+                period_debit = float(row['period_debit'] or 0)
+                period_credit = float(row['period_credit'] or 0)
+                closing_balance = float(row['closing_balance'] or 0)
+                
+                total_opening_debit += float(row['opening_debit'] or 0)
+                total_opening_credit += float(row['opening_credit'] or 0)
+                total_period_debit += period_debit
+                total_period_credit += period_credit
+                total_closing_debit += float(row['closing_debit'] or 0)
+                total_closing_credit += float(row['closing_credit'] or 0)
+                
+                trial_balance_data.append({
+                    'primary_group': row['primary_group'] or '',
+                    'sub_group': row['sub_group'] or '',
+                    'ledger_name': row['ledger_name'] or '',
+                    'opening_debit': float(row['opening_debit'] or 0),
+                    'opening_credit': float(row['opening_credit'] or 0),
+                    'opening_balance': abs(opening_balance),
+                    'opening_balance_type': row['opening_balance_type'] or 'Dr',
+                    'period_debit': period_debit,
+                    'period_credit': period_credit,
+                    'closing_debit': float(row['closing_debit'] or 0),
+                    'closing_credit': float(row['closing_credit'] or 0),
+                    'closing_balance': abs(closing_balance),
+                    'closing_balance_type': row['closing_balance_type'] or 'Dr'
+                })
+            
+            conn.close()
+            
+            response_data = {
+                'company_name': company_name,
+                'from_date': from_date,
+                'to_date': to_date,
+                'trial_balance': trial_balance_data,
+                'totals': {
+                    'opening_debit': total_opening_debit,
+                    'opening_credit': total_opening_credit,
+                    'opening_balance': abs(total_opening_debit - total_opening_credit),
+                    'opening_balance_type': 'Dr' if (total_opening_debit - total_opening_credit) >= 0 else 'Cr',
+                    'period_debit': total_period_debit,
+                    'period_credit': total_period_credit,
+                    'closing_debit': total_closing_debit,
+                    'closing_credit': total_closing_credit,
+                    'closing_balance': abs(total_closing_debit - total_closing_credit),
+                    'closing_balance_type': 'Dr' if (total_closing_debit - total_closing_credit) >= 0 else 'Cr'
+                },
+                'total_ledgers': len(trial_balance_data)
+            }
+            
+            self.send_json_response(response_data)
+            
+        except Exception as e:
+            print(f"[ERROR] send_trial_balance_data: {e}")
+            import traceback
+            traceback.print_exc()
+            self.send_error(500, f"Error fetching trial balance data: {str(e)}")
     
     def send_sync_logs(self, path, parsed):
         """Send sync logs data as JSON."""
