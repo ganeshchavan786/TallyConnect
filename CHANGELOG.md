@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.5] - 2025-12-19
+
+### Maintenance
+- **Code cleanup and organization**
+  - Cleaned up backup files and temporary files
+  - Improved code organization and structure
+
 ## [1.5.3] - 2025-12-19
 
 ### Changed
